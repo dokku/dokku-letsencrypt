@@ -1,6 +1,6 @@
 # dokku-letsencrypt
 
-dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). Contrary to other methods, no temporary disabling of the webserver is required during the ACME challenge procedure!
+dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). Contrary to other methods, no temporary disabling of the webserver is required during the ACME challenge procedure (see the 'Design' section for how this is done)!
 
 **Note:** `dokku-letsencrypt` will not autorenew the certificates (but you can run the included certificate renewal procedure in a cronjob).
 
@@ -54,9 +54,12 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 
 ## Design
 
+`dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
-`dokku-letsencrypt` will temporarily add a reverse proxy for the `/.well-known/` path of your app to handle ACME challenges, run [https://letsencrypt.readthedocs.org/en/latest/using.html#running-with-docker](letsencrypt as a docker container) with the 'standalone' authenticator and then remove the temporary reverse proxy from your app.
-
+  1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
+  2. Run [https://letsencrypt.readthedocs.org/en/latest/using.html#running-with-docker](letsencrypt as a docker container) with the 'standalone' authenticator binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
+  3. Install the TLS certificates
+  4. Remove the reverse proxy
 
 ## License
 
