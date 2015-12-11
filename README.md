@@ -57,7 +57,7 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
   1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
-  2. Run [https://letsencrypt.readthedocs.org/en/latest/using.html#running-with-docker](letsencrypt as a docker container) with the 'standalone' authenticator binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
+  2. Run [letsencrypt as a Docker container](https://letsencrypt.readthedocs.org/en/latest/using.html#running-with-docker) with the 'standalone' authenticator binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
   3. Install the TLS certificates
   4. Remove the reverse proxy
 
