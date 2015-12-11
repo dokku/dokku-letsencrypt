@@ -1,6 +1,6 @@
 # dokku-letsencrypt
 
-dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [https://letsencrypt.org](letsencrypt.org). Contrary to other methods, no temporary disabling of the webserver is required during the ACME challenge procedure!
+dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). Contrary to other methods, no temporary disabling of the webserver is required during the ACME challenge procedure!
 
 **Note:** `dokku-letsencrypt` will not autorenew the certificates (but you can run the included certificate renewal procedure in a cronjob).
 
