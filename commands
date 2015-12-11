@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+PLUGIN_BASE_PATH="$PLUGIN_PATH"
+if [[ -n $DOKKU_API_VERSION ]]; then
+  PLUGIN_BASE_PATH="$PLUGIN_ENABLED_PATH"
+fi
+
+source "$PLUGIN_BASE_PATH/letsencrypt/functions"
+source "$PLUGIN_BASE_PATH/nginx-vhosts/functions"
+source "$PLUGIN_BASE_PATH/common/functions"
+
+if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
+  [[ -z $2 ]] && echo "Please specify an app to run the command on" && exit 1
+  verify_app_name "$2"
+  APP="$2"
+  APP_ROOT="$DOKKU_ROOT/$APP"
+fi
+
+case "$1" in
+  letsencrypt:on)
+
+    dokku_log_info1 "Enabling letsencrypt for $APP..."
+
+
+    # TODO dynamically assign ACME port
+    ACMEPORT=8888
+
+    letsencrypt_update
+    letsencrypt_acmeproxy_on
+    letsencrypt_acme
+    letsencrypt_acmeproxy_off
+
+    dokku_log_verbose "done"
+
+    ;;
+
+  help)
+    HELP=$(cat<<EOF
+    letsencrypt:on <app>, Enable letsencrypt for app
+EOF
+)
+    if [[ -n $DOKKU_API_VERSION ]]; then
+      echo "$HELP"
+    else
+      cat && echo "$HELP"
+    fi
+    ;;
+
+  *)
+    exit $DOKKU_NOT_IMPLEMENTED_EXIT
+    ;;
+
+esac

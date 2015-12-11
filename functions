@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+
+reload_nginx () {
+  case "$DOKKU_DISTRO" in
+    ubuntu)
+      sudo /etc/init.d/nginx reload > /dev/null
+      ;;
+
+    opensuse)
+      sudo /sbin/service nginx reload > /dev/null
+      ;;
+  esac
+}
+
+
+letsencrypt_acmeproxy_on () {
+  dokku_log_info1 "Enabling ACME proxy for $APP..."
+
+  if [[ ! -d "$APP_ROOT/nginx.conf.d" ]]; then
+    mkdir "$APP_ROOT/nginx.conf.d"
+  fi
+  cp "$(dirname "$0")/templates/letsencrypt.conf" "$APP_ROOT/nginx.conf.d"
+  sed -i "s,{ACMEPORT},$ACMEPORT," "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
+
+  reload_nginx
+}
+
+letsencrypt_acmeproxy_off() {
+  dokku_log_info1 "Disabling ACME proxy for $APP..."
+
+  if [[ -f "$APP_ROOT/nginx.conf.d/letsencrypt.conf" ]]; then
+    rm "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
+  fi
+  reload_nginx
+}
+
+letsencrypt_update () {
+  dokku_log_info1 "Updating letsencrypt docker image..."
+  docker pull quay.io/letsencrypt/letsencrypt:latest
+  dokku_log_verbose "done"
+}
+
+letsencrypt_acme () {
+
+  DOMAIN=$(dokku url $APP | sed -re "s,https?://,,")
+  dokku_log_info1 "Getting letsencrypt certificate for $APP, domain $DOMAIN..."
+  APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
+
+  # run letsencrypt as a docker container using "certonly" mode
+  # port 80 of the standalone webserver will be forwarded by the proxy
+  docker run -it --rm \
+    -p $ACMEPORT:80 \
+    -v "/etc/letsencrypt:/etc/letsencrypt" \
+    -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
+    quay.io/letsencrypt/letsencrypt:latest \
+    -d $DOMAIN \
+    -a standalone \
+    --standalone-supported-challenges http-01 \
+    certonly
+
+  mkdir -p $APP_SSL_PATH
+  cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$APP_SSL_PATH/server.key"
+  cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$APP_SSL_PATH/server.crt"
+
+  nginx_build_config $APP
+}
