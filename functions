@@ -57,7 +57,8 @@ letsencrypt_acme () {
     -d $DOMAIN \
     -a standalone \
     --standalone-supported-challenges http-01 \
-    certonly
+    certonly \
+    --renew-by-default
 
   mkdir -p $APP_SSL_PATH
   cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$APP_SSL_PATH/server.key"
