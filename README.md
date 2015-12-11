@@ -50,6 +50,8 @@ IMPORTANT NOTES:
        done
 ```
 
+Once the certificate is installed, you can use the `certs:*` built-in commands to edit and query your certificate.
+
 ## Design
 
 
