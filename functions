@@ -13,13 +13,14 @@ reload_nginx () {
   esac
 }
 
-
 letsencrypt_acmeproxy_on () {
   dokku_log_info1 "Enabling ACME proxy for $APP..."
 
   if [[ ! -d "$APP_ROOT/nginx.conf.d" ]]; then
     mkdir "$APP_ROOT/nginx.conf.d"
   fi
+
+  rm -f "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
   cp "$(dirname "$0")/templates/letsencrypt.conf" "$APP_ROOT/nginx.conf.d"
   sed -i "s,{ACMEPORT},$ACMEPORT," "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
 
@@ -32,6 +33,7 @@ letsencrypt_acmeproxy_off() {
   if [[ -f "$APP_ROOT/nginx.conf.d/letsencrypt.conf" ]]; then
     rm "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
   fi
+
   reload_nginx
 }
 
@@ -41,9 +43,28 @@ letsencrypt_update () {
   dokku_log_verbose "done"
 }
 
-letsencrypt_acme () {
+letsencrypt_link () {
+  PRIMARY_DOMAIN=$(dokku url "$APP" | sed -re "s,https?://,,")
+  LIVE="$LETSENCRYPT_ROOT/etc/live/$PRIMARY_DOMAIN"
+  mkdir -p "$APP_SSL_ROOT"
+  ln -nsf "$LIVE/privkey.pem" "$APP_SSL_ROOT/server.key"
+  ln -nsf "$LIVE/fullchain.pem" "$APP_SSL_ROOT/server.crt"
+}
 
-  DOMAINS=$(dokku urls $APP | sed -re "s,https?://,," | uniq)
+letsencrypt_create_root () {
+  # Set up folders
+  if [ ! -d "$LETSENCRYPT_ROOT" ]; then
+    mkdir -p "$LETSENCRYPT_ROOT/etc/"{live,archive}
+    mkdir -p "$LETSENCRYPT_ROOT/var"
+    chgrp dokku "$LETSENCRYPT_ROOT/etc/"{live,archive}
+    chmod 710 "$LETSENCRYPT_ROOT/etc/"{live,archive}
+  fi
+}
+
+letsencrypt_acme () {
+  letsencrypt_create_root
+
+  DOMAINS=$(dokku urls "$APP" | sed -re "s,https?://,," | uniq)
   dokku_log_info1 "Getting letsencrypt certificate for $APP..."
 
   DOMAIN_ARGS=''
@@ -52,29 +73,23 @@ letsencrypt_acme () {
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
-  PRIMARY_DOMAIN=$(dokku url $APP | sed -re "s,https?://,,")
-
-  APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
-
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   docker run -it --rm \
     -p $ACMEPORT:80 \
-    -v "/home/dokku/letsencrypt/etc:/etc/letsencrypt" \
-    -v "/home/dokku/letsencrypt/var:/var/lib/letsencrypt" \
+    -v "$LETSENCRYPT_ROOT/etc:/etc/letsencrypt" \
+    -v "$LETSENCRYPT_ROOT/var:/var/lib/letsencrypt" \
     quay.io/letsencrypt/letsencrypt:latest \
     $DOMAIN_ARGS \
     -a standalone \
     --standalone-supported-challenges http-01 \
     certonly \
-    --renew-by-default
+    --renew-by-default \
+    --agree-tos
 
   # NOTE: add the following to the end to use the letsencrypt staging server:
-  # --server https://acme-staging.api.letsencrypt.org/directory \
+  # --server https://acme-staging.api.letsencrypt.org/directory
 
-  mkdir -p $APP_SSL_PATH
-  ln -nsf "/home/dokku/letsencrypt/etc/live/$PRIMARY_DOMAIN/privkey.pem" "$APP_SSL_PATH/server.key"
-  ln -nsf "/home/dokku/letsencrypt/etc/live/$PRIMARY_DOMAIN/fullchain.pem" "$APP_SSL_PATH/server.crt"
-
-  nginx_build_config $APP
+  letsencrypt_link
+  nginx_build_config "$APP"
 }
