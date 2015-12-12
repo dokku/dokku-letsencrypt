@@ -43,8 +43,15 @@ letsencrypt_update () {
 
 letsencrypt_acme () {
 
-  DOMAIN=$(dokku url $APP | sed -re "s,https?://,,")
-  dokku_log_info1 "Getting letsencrypt certificate for $APP, domain $DOMAIN..."
+  DOMAINS=$(dokku urls $APP | sed -re "s,https?://,," | uniq)
+  dokku_log_info1 "Getting letsencrypt certificate for $APP..."
+
+  DOMAIN_ARGS=''
+  for DOMAIN in $DOMAINS; do
+    dokku_log_verbose " - Domain '$DOMAIN'"
+    DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
+  done
+
   APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
 
   # run letsencrypt as a docker container using "certonly" mode
@@ -54,7 +61,7 @@ letsencrypt_acme () {
     -v "/etc/letsencrypt:/etc/letsencrypt" \
     -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
     quay.io/letsencrypt/letsencrypt:latest \
-    -d $DOMAIN \
+    $DOMAIN_ARGS \
     -a standalone \
     --standalone-supported-challenges http-01 \
     certonly \
