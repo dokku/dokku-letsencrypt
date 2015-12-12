@@ -61,6 +61,8 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
   3. Install the TLS certificates
   4. Remove the reverse proxy
 
+For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
+
 ## License
 
 This plugin is released under the MIT license. See the file [LICENSE](LICENSE).
