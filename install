@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
-sudo mkdir -p /etc/letsencrypt
-sudo mkdir -p /var/lib/letsencrypt
+sudo mkdir -p /home/dokku/letsencrypt/etc/{live,archive}
+sudo mkdir -p /home/dokku/letsencrypt/var
 
-sudo chown -hR dokku:dokku /etc/letsencrypt
-sudo chown -hR dokku:dokku /var/lib/letsencrypt
+sudo chgrp dokku /home/dokku/letsencrypt/etc/{live,archive}
+sudo chmod 710 /home/dokku/letsencrypt/etc/{live,archive}

@@ -52,14 +52,16 @@ letsencrypt_acme () {
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
+  PRIMARY_DOMAIN=$(dokku url $APP | sed -re "s,https?://,,")
+
   APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   docker run -it --rm \
     -p $ACMEPORT:80 \
-    -v "/etc/letsencrypt:/etc/letsencrypt" \
-    -v "/var/lib/letsencrypt:/var/lib/letsencrypt" \
+    -v "/home/dokku/letsencrypt/etc:/etc/letsencrypt" \
+    -v "/home/dokku/letsencrypt/var:/var/lib/letsencrypt" \
     quay.io/letsencrypt/letsencrypt:latest \
     $DOMAIN_ARGS \
     -a standalone \
@@ -67,9 +69,12 @@ letsencrypt_acme () {
     certonly \
     --renew-by-default
 
+  # NOTE: add the following to the end to use the letsencrypt staging server:
+  # --server https://acme-staging.api.letsencrypt.org/directory \
+
   mkdir -p $APP_SSL_PATH
-  cp "/etc/letsencrypt/live/$DOMAIN/privkey.pem" "$APP_SSL_PATH/server.key"
-  cp "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" "$APP_SSL_PATH/server.crt"
+  ln -nsf "/home/dokku/letsencrypt/etc/live/$PRIMARY_DOMAIN/privkey.pem" "$APP_SSL_PATH/server.key"
+  ln -nsf "/home/dokku/letsencrypt/etc/live/$PRIMARY_DOMAIN/fullchain.pem" "$APP_SSL_PATH/server.crt"
 
   nginx_build_config $APP
 }
