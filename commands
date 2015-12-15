@@ -15,13 +15,13 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   verify_app_name "$2"
   APP="$2"
   APP_ROOT="$DOKKU_ROOT/$APP"
+  APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
+  LETSENCRYPT_ROOT="$DOKKU_ROOT/.letsencrypt"
 fi
 
 case "$1" in
-  letsencrypt:on)
-
-    dokku_log_info1 "Enabling letsencrypt for $APP..."
-
+  letsencrypt)
+    dokku_log_info1 "Let's Encrypt $APP..."
 
     # TODO dynamically assign ACME port
     ACMEPORT=8888
@@ -37,7 +37,7 @@ case "$1" in
 
   help)
     HELP=$(cat<<EOF
-    letsencrypt:on <app>, Enable letsencrypt for app
+    letsencrypt <app>, Enable or renew letsencrypt for app
 EOF
 )
     if [[ -n $DOKKU_API_VERSION ]]; then
@@ -48,7 +48,7 @@ EOF
     ;;
 
   *)
-    exit $DOKKU_NOT_IMPLEMENTED_EXIT
+    exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
     ;;
 
 esac
