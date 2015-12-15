@@ -4,6 +4,8 @@ dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to autom
 
 **Note:** `dokku-letsencrypt` will not auto-renew the certificates (but you can run the included certificate renewal procedure in a cronjob).
 
+**Note:** By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
+
 ## Installation
 
 ```sh
@@ -23,15 +25,16 @@ $ dokku help
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku letsencrypt:on myapp
------> Enabling letsencrypt for myapp...
+$ dokku letsencrypt myapp
+-----> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
 latest: Pulling from letsencrypt/letsencrypt
 Digest: sha256:b7543399a2347b43c1d0f3b8c2a3deb8a9d3945fb762c0dbd1d595927813e9c4
 Status: Image is up to date for quay.io/letsencrypt/letsencrypt:latest
        done
 -----> Enabling ACME proxy for myapp...
------> Getting letsencrypt certificate for myapp, domain myapp.mydomain.com...
+-----> Getting letsencrypt certificate for myapp...
+        - Domain 'myapp.mydomain.com'
 IMPORTANT NOTES:
  - Congratulations! Your certificate and chain have been saved at
    /etc/letsencrypt/live/myapp.mydomain.com/fullchain.pem.
