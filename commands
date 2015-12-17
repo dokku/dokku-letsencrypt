@@ -23,8 +23,8 @@ case "$1" in
   letsencrypt)
     dokku_log_info1 "Let's Encrypt $APP..."
 
-    # TODO dynamically assign ACME port
-    ACMEPORT=8888
+    # dynamically choose a port for the letsencrypt standalone authenticator
+    ACMEPORT=$(get_available_port)
 
     letsencrypt_update
     letsencrypt_acmeproxy_on
