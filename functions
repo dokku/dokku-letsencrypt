@@ -64,7 +64,7 @@ letsencrypt_create_root () {
 letsencrypt_acme () {
   letsencrypt_create_root
 
-  DOMAINS=$(dokku urls "$APP" | sed -re "s,https?://,," | uniq)
+  DOMAINS=$(dokku urls "$APP" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | sed "s,\\s,\n,g" | uniq | xargs)
   dokku_log_info1 "Getting letsencrypt certificate for $APP..."
 
   DOMAIN_ARGS=''
