@@ -66,6 +66,20 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
 
+
+## Dealing with rate limit
+
+Be aware that Let's Encrypt is subject to [rate limiting](https://community.letsencrypt.org/t/rate-limits-for-lets-encrypt/6769). The limit about the number of certificates you can add on a domain per week is a concern for dokku because of the default domain added to your new applications, named like `<app>.<dokku-domain>`: using `dokku-letsencrypt` on all your applications would create a certificate for each application subdomain on `<dokku-domain>`.
+
+As a workaround, if you want to encrypt many applications, make sure to add a proper domain for each one and remove their default domain before running `dokku-letsencrypt`. For example, if your dokku domain is `dokku.example.com` and you want to encrypt your `foo` app:
+
+```
+dokku domains:add foo.com
+dokku domains:remove foo.dokku.example.com
+dokku letsencrypt foo
+```
+
+
 ## License
 
 This plugin is released under the MIT license. See the file [LICENSE](LICENSE).
