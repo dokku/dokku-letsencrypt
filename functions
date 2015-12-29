@@ -61,6 +61,11 @@ letsencrypt_create_root () {
   fi
 }
 
+letsencrypt_get_server() {
+  # only cat if file exists
+  [ ! -f "$LETSENCRYPT_SERVERFILE" ] || cat $LETSENCRYPT_SERVERFILE
+}
+
 letsencrypt_acme () {
   letsencrypt_create_root
 
@@ -73,6 +78,11 @@ letsencrypt_acme () {
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
+  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
+    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
+  fi
+
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   docker run -it --rm \
@@ -80,6 +90,7 @@ letsencrypt_acme () {
     -v "$LETSENCRYPT_ROOT/etc:/etc/letsencrypt" \
     -v "$LETSENCRYPT_ROOT/var:/var/lib/letsencrypt" \
     quay.io/letsencrypt/letsencrypt:latest \
+    $LETSENCRYPT_SERVER \
     $DOMAIN_ARGS \
     -a standalone \
     --standalone-supported-challenges http-01 \
@@ -87,8 +98,7 @@ letsencrypt_acme () {
     --renew-by-default \
     --agree-tos
 
-  # NOTE: add the following to the end to use the letsencrypt staging server:
-  # --server https://acme-staging.api.letsencrypt.org/directory
+  # NOTE: use 'dokku letsencrypt:server myapp staging' while debugging!
 
   letsencrypt_link
   nginx_build_config "$APP"

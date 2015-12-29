@@ -17,7 +17,9 @@ $ sudo dokku plugin:install https://github.com/sseemayer/dokku-letsencrypt.git
 
 ```
 $ dokku help
-    letsencrypt <app>                              Enable or renew letsencrypt certificate for app
+    letsencrypt <app>                  Enable or renew letsencrypt certificate for app
+    letsencrypt:server <app>           Display selected letsencrypt server for app
+    letsencrypt:server <app> <server>  Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
 ```
 
 ## Usage
@@ -79,6 +81,7 @@ dokku domains:remove foo.dokku.example.com
 dokku letsencrypt foo
 ```
 
+While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku letsencrypt:server myapp staging` to enjoy much higher rate limits and switching back to the real server by running `dokku letsencrypt:server myapp default` once you are ready.
 
 ## License
 

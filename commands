@@ -17,6 +17,7 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   APP_ROOT="$DOKKU_ROOT/$APP"
   APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
   LETSENCRYPT_ROOT="$DOKKU_ROOT/.letsencrypt"
+  LETSENCRYPT_SERVERFILE="$APP_ROOT/letsencrypt-server"
 fi
 
 case "$1" in
@@ -35,9 +36,42 @@ case "$1" in
 
     ;;
 
+  letsencrypt:server)
+    if [[ -z "$3" ]]; then
+      LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+
+      if [ -z "$LETSENCRYPT_SERVER" ]; then
+        dokku_log_verbose "Let's Encrypt server for $APP is default"
+      else
+        dokku_log_verbose "Let's Encrypt server for $APP is '$LETSENCRYPT_SERVER'"
+      fi
+
+    else
+      LETSENCRYPT_SERVER="${3,,}"
+
+      if [ "$LETSENCRYPT_SERVER" == "default" ]; then
+        LETSENCRYPT_SERVER=""
+      elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
+        LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
+      fi
+
+      if [ -z "$LETSENCRYPT_SERVER" ]; then
+        dokku_log_info2 "Setting Let's Encrypt Server for $APP to default"
+        rm -f $LETSENCRYPT_SERVERFILE
+      else
+        dokku_log_info2 "Setting Let's Encrypt Server for $APP to '$LETSENCRYPT_SERVER'"
+        echo $LETSENCRYPT_SERVER > $LETSENCRYPT_SERVERFILE
+      fi
+
+    fi
+
+    ;;
+
   help)
     HELP=$(cat<<EOF
     letsencrypt <app>, Enable or renew letsencrypt for app
+    letsencrypt:server <app>, Get selected letsencrypt server for app
+    letsencrypt:server <app> <server>, Select a letsencrypt server for app (server can be 'default' 'staging' or a URL)
 EOF
 )
     if [[ -n $DOKKU_API_VERSION ]]; then
