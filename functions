@@ -83,9 +83,12 @@ letsencrypt_acme () {
     LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
   fi
 
+  # if we have a prompt, then we have a tty according to the LDP (http://www.tldp.org/LDP/abs/html/intandnonint.html)
+  [[ ! -z "$PS1" ]] && DOKKU_RUN_OPTS="-it"
+
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
-  docker run -it --rm \
+  docker run $DOKKU_RUN_OPTS --rm \
     -p $ACMEPORT:80 \
     -v "$LETSENCRYPT_ROOT/etc:/etc/letsencrypt" \
     -v "$LETSENCRYPT_ROOT/var:/var/lib/letsencrypt" \
