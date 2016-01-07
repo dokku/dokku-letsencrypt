@@ -84,6 +84,22 @@ letsencrypt_set_server() {
   fi
 }
 
+letsencrypt_get_email() {
+  # only cat if file exists
+  [ ! -f "$LETSENCRYPT_EMAILFILE" ] || cat $LETSENCRYPT_EMAILFILE
+}
+
+letsencrypt_set_email() {
+  LETSENCRYPT_EMAIL="${1}"
+  if [ -z "$LETSENCRYPT_EMAIL" ]; then
+    dokku_log_info2 "Removing Let's Encrypt e-mail information for $APP"
+    rm -f $LETSENCRYPT_EMAILFILE
+  else
+    dokku_log_info2 "Setting Let's Encrypt e-mail address for $APP to '$LETSENCRYPT_EMAIL'"
+    echo $LETSENCRYPT_EMAIL > $LETSENCRYPT_EMAILFILE
+  fi
+}
+
 letsencrypt_acme () {
   letsencrypt_create_root
 

@@ -18,6 +18,7 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
   LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
   LETSENCRYPT_SERVERFILE="$LETSENCRYPT_ROOT/server"
+  LETSENCRYPT_EMAILFILE="$LETSENCRYPT_ROOT/email"
 fi
 
 case "$1" in
@@ -54,9 +55,30 @@ case "$1" in
 
     ;;
 
+  letsencrypt:email)
+    letsencrypt_create_root
+
+    if [[ -z "$3" ]]; then
+      LETSENCRYPT_EMAIL=$(letsencrypt_get_email)
+
+      if [ -z "$LETSENCRYPT_EMAIL" ]; then
+        dokku_log_verbose "Let's Encrypt e-mail for $APP is not set"
+        dokku_log_verbose "  to set, use dokku letsencrypt:email $APP <email>"
+      else
+        dokku_log_verbose "Let's Encrypt e-mail for $APP is '$LETSENCRYPT_EMAIL'"
+      fi
+
+    else
+      letsencrypt_set_email $3
+    fi
+
+    ;;
+
   help)
     HELP=$(cat<<EOF
     letsencrypt <app>, Enable or renew letsencrypt for app
+    letsencrypt:email <app>, Get e-mail address used as letsencrypt contact
+    letsencrypt:email <app> <e-mail>, Set e-mail address used as letsencrypt contact
     letsencrypt:server <app>, Get selected letsencrypt server for app
     letsencrypt:server <app> <server>, Select a letsencrypt server for app (server can be 'default' 'staging' or a URL)
 EOF
