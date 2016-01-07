@@ -66,6 +66,24 @@ letsencrypt_get_server() {
   [ ! -f "$LETSENCRYPT_SERVERFILE" ] || cat $LETSENCRYPT_SERVERFILE
 }
 
+letsencrypt_set_server() {
+  LETSENCRYPT_SERVER="${1,,}"
+
+  if [ "$LETSENCRYPT_SERVER" == "default" ]; then
+    LETSENCRYPT_SERVER=""
+  elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
+    LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
+  fi
+
+  if [ -z "$LETSENCRYPT_SERVER" ]; then
+    dokku_log_info2 "Setting Let's Encrypt Server for $APP to default"
+    rm -f $LETSENCRYPT_SERVERFILE
+  else
+    dokku_log_info2 "Setting Let's Encrypt Server for $APP to '$LETSENCRYPT_SERVER'"
+    echo $LETSENCRYPT_SERVER > $LETSENCRYPT_SERVERFILE
+  fi
+}
+
 letsencrypt_acme () {
   letsencrypt_create_root
 
