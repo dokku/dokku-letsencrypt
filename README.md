@@ -18,6 +18,8 @@ $ sudo dokku plugin:install https://github.com/sseemayer/dokku-letsencrypt.git
 ```
 $ dokku help
     letsencrypt <app>                  Enable or renew letsencrypt certificate for app
+    letsencrypt:email <app>            Get e-mail address used as letsencrypt contact
+    letsencrypt:email <app> <e-mail>   Set e-mail address used as letsencrypt contact
     letsencrypt:server <app>           Display selected letsencrypt server for app
     letsencrypt:server <app> <server>  Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
 ```
@@ -27,27 +29,27 @@ $ dokku help
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
+$ dokku letsencrypt:email myapp your@email.tld
+=====> Setting Let's Encrypt e-mail address for myapp to 'your@email.tld'
+
 $ dokku letsencrypt myapp
------> Let's Encrypt myapp...
+=====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
-latest: Pulling from letsencrypt/letsencrypt
-Digest: sha256:b7543399a2347b43c1d0f3b8c2a3deb8a9d3945fb762c0dbd1d595927813e9c4
-Status: Image is up to date for quay.io/letsencrypt/letsencrypt:latest
+latest: Pulling from m3adow/letsencrypt-simp_le
+
+Digest: sha256:20f2a619795c1a3252db6508f77d6d3648ad5b336e67caaf801126367dbdfa22
+Status: Image is up to date for m3adow/letsencrypt-simp_le:latest
        done
 -----> Enabling ACME proxy for myapp...
 -----> Getting letsencrypt certificate for myapp...
         - Domain 'myapp.mydomain.com'
-IMPORTANT NOTES:
- - Congratulations! Your certificate and chain have been saved at
-   /etc/letsencrypt/live/myapp.mydomain.com/fullchain.pem.
-   Your cert will expire on 2016-03-10. To obtain a new version of the
-   certificate in the future, simply run Let's Encrypt again.
- - If you like Let's Encrypt, please consider supporting our work by:
+        hash of all pertinent configuration settings is a131be342a0d7661817a4c23b1a767f5da5abbf3
 
-   Donating to ISRG / Let's Encrypt:   https://letsencrypt.org/donate
-   Donating to EFF:                    https://eff.org/donate-le
+[ removed various log messages for brevity ]
 
------> Configuring SSL for myapp.mydomain.com...
+-----> Certificate retrieved successfully.
+-----> Symlinking let's encrypt certificates
+-----> Configuring SSL for myapp.mydomain.com...(using /var/lib/dokku/plugins/available/nginx-vhosts/templates/nginx.ssl.conf.template)
 -----> Creating https nginx.conf
 -----> Running nginx-pre-reload
        Reloading nginx
@@ -62,9 +64,9 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
   1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
-  2. Run [letsencrypt as a Docker container](https://letsencrypt.readthedocs.org/en/latest/using.html#running-with-docker) with the 'standalone' authenticator binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
+  2. Run [the simp_le Let's Encrypt client](https://github.com/kuba/simp_le) in a [Docker container](https://hub.docker.com/r/m3adow/letsencrypt-simp_le) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
   3. Install the TLS certificates
-  4. Remove the reverse proxy
+  4. Remove the reverse proxy and reload nginx
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
 
