@@ -12,7 +12,7 @@ dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the abili
 
 ```sh
 # dokku 0.4+
-$ sudo dokku plugin:install https://github.com/sseemayer/dokku-letsencrypt.git
+$ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 ```
 
 ## Commands
