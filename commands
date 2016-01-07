@@ -30,7 +30,7 @@ case "$1" in
 
     letsencrypt_update
     letsencrypt_acmeproxy_on
-    letsencrypt_acme
+    letsencrypt_acme || true    # remove ACME proxy even if this fails
     letsencrypt_acmeproxy_off
 
     dokku_log_verbose "done"

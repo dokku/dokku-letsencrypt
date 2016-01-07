@@ -39,25 +39,21 @@ letsencrypt_acmeproxy_off() {
 
 letsencrypt_update () {
   dokku_log_info1 "Updating letsencrypt docker image..."
-  docker pull quay.io/letsencrypt/letsencrypt:latest
+  docker pull m3adow/letsencrypt-simp_le:latest
   dokku_log_verbose "done"
 }
 
 letsencrypt_link () {
-  PRIMARY_DOMAIN=$(dokku url "$APP" | sed -re "s,https?://,,")
-  LIVE="$LETSENCRYPT_ROOT/etc/live/$PRIMARY_DOMAIN"
+  dokku_log_info1 "Symlinking let's encrypt certificates"
   mkdir -p "$APP_SSL_ROOT"
-  ln -nsf "$LIVE/privkey.pem" "$APP_SSL_ROOT/server.key"
-  ln -nsf "$LIVE/fullchain.pem" "$APP_SSL_ROOT/server.crt"
+  ln -nsf "$LETSENCRYPT_ROOT/key.pem" "$APP_SSL_ROOT/server.key"
+  ln -nsf "$LETSENCRYPT_ROOT/fullchain.pem" "$APP_SSL_ROOT/server.crt"
 }
 
 letsencrypt_create_root () {
   # Set up folders
   if [ ! -d "$LETSENCRYPT_ROOT" ]; then
-    mkdir -p "$LETSENCRYPT_ROOT/etc/"{live,archive}
-    mkdir -p "$LETSENCRYPT_ROOT/var"
-    chgrp dokku "$LETSENCRYPT_ROOT/etc/"{live,archive}
-    chmod 710 "$LETSENCRYPT_ROOT/etc/"{live,archive}
+    mkdir -p "$LETSENCRYPT_ROOT"
   fi
 }
 
@@ -103,40 +99,63 @@ letsencrypt_set_email() {
 letsencrypt_acme () {
   letsencrypt_create_root
 
-  DOMAINS=$(dokku urls "$APP" | sed "s,\\s,\n,g" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | uniq | xargs)
+  # check we have a valid e-mail address
+  LETSENCRYPT_EMAIL=$(letsencrypt_get_email)
+  if [ -z "$LETSENCRYPT_EMAIL" ]; then
+    dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
+    dokku_log_warn "  please provide your e-mail address using"
+    dokku_log_warn "  dokku letsencrypt:email $APP <e-mail>"
+    return 1
+  fi
+
+  # get the selected ACME server
+  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
+    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
+  fi
+
   dokku_log_info1 "Getting letsencrypt certificate for $APP..."
 
+  # construct domain arguments
+  DOMAINS=$(dokku urls "$APP" | sed "s,\\s,\n,g" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | uniq | xargs)
   DOMAIN_ARGS=''
   for DOMAIN in $DOMAINS; do
     dokku_log_verbose " - Domain '$DOMAIN'"
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
-  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
-  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
-    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
-  fi
-
-  # If we are in a TTY, also request a TTY for the letsencrypt container
-  # in case it wants to prompt the user for more information.
-  [[ -t 1 ]] && DOKKU_RUN_OPTS="-it"
-
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
-  docker run $DOKKU_RUN_OPTS --rm \
+  set +e
+  docker run --rm \
     -p $ACMEPORT:80 \
-    -v "$LETSENCRYPT_ROOT/etc:/etc/letsencrypt" \
-    -v "$LETSENCRYPT_ROOT/var:/var/lib/letsencrypt" \
-    quay.io/letsencrypt/letsencrypt:latest \
+    -v "$LETSENCRYPT_ROOT:/certs" \
+    m3adow/letsencrypt-simp_le:latest \
+    -f account_key.json \
+    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     $LETSENCRYPT_SERVER \
-    $DOMAIN_ARGS \
-    -a standalone \
-    --standalone-supported-challenges http-01 \
-    certonly \
-    --renew-by-default \
-    --agree-tos
+    --email $LETSENCRYPT_EMAIL \
+    $DOMAIN_ARGS
 
-  # NOTE: use 'dokku letsencrypt:server myapp staging' while debugging!
+  SIMPLE_RESULT=$?
+  set -e
+
+  # handle simp_le return codes
+  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
+  if [[ $SIMPLE_RESULT == 0 ]]; then
+    # got certificate
+    dokku_log_info1 "Certificate retrieved successfully."
+
+  elif [[ $SIMPLE_RESULT == 1 ]]; then
+    # no renewal necessary
+    dokku_log_info1 "No renewal necessary"
+
+  else
+    # error - don't try to link certificates
+    dokku_log_info1 "Certificate retrieval failed!"
+    return
+
+  fi
 
   letsencrypt_link
   nginx_build_config "$APP"
