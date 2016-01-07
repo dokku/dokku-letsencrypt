@@ -45,9 +45,15 @@ letsencrypt_update () {
 
 letsencrypt_link () {
   dokku_log_info1 "Symlinking let's encrypt certificates"
+  LETSENCRYPT_CONFIG_DIR=$1
+
+  # link the current config directory to 'current'
+  ln -nsf $LETSENCRYPT_CONFIG_DIR $LETSENCRYPT_ROOT/certs/current
+
+  # link the certificates from LETSENCRYPT_ROOT to the app's TLS certificate storage
   mkdir -p "$APP_SSL_ROOT"
-  ln -nsf "$LETSENCRYPT_ROOT/key.pem" "$APP_SSL_ROOT/server.key"
-  ln -nsf "$LETSENCRYPT_ROOT/fullchain.pem" "$APP_SSL_ROOT/server.crt"
+  ln -nsf "$LETSENCRYPT_ROOT/certs/current/key.pem" "$APP_SSL_ROOT/server.key"
+  ln -nsf "$LETSENCRYPT_ROOT/certs/current/fullchain.pem" "$APP_SSL_ROOT/server.crt"
 }
 
 letsencrypt_create_root () {
@@ -124,18 +130,29 @@ letsencrypt_acme () {
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
+  # build up a string of all certificate-controlling configuration settings.
+  # this will be used to determine the folder name for the account key and certificates
+  LETSENCRYPT_CONFIG="$LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
+  LETSENCRYPT_CONFIG_HASH=$( echo $LETSENCRYPT_CONFIG | sha1sum | awk '{print $1}');
+  LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
+  LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
+
+  dokku_log_verbose " hash of all pertinent configuration settings is $LETSENCRYPT_CONFIG_HASH"
+
+  # create the config dir (if not available) and store config settings
+  mkdir -p "$LETSENCRYPT_CONFIG_DIR"
+  echo $LETSENCRYPT_CONFIG > $LETSENCRYPT_CONFIG_FILE
+
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   set +e
   docker run --rm \
     -p $ACMEPORT:80 \
-    -v "$LETSENCRYPT_ROOT:/certs" \
+    -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
     m3adow/letsencrypt-simp_le:latest \
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
-    $LETSENCRYPT_SERVER \
-    --email $LETSENCRYPT_EMAIL \
-    $DOMAIN_ARGS
+    $LETSENCRYPT_CONFIG
 
   SIMPLE_RESULT=$?
   set -e
@@ -157,6 +174,6 @@ letsencrypt_acme () {
 
   fi
 
-  letsencrypt_link
+  letsencrypt_link $LETSENCRYPT_CONFIG_DIR
   nginx_build_config "$APP"
 }
