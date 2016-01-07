@@ -23,7 +23,7 @@ fi
 
 case "$1" in
   letsencrypt)
-    dokku_log_info1 "Let's Encrypt $APP..."
+    dokku_log_info2 "Let's Encrypt $APP..."
 
     # dynamically choose a port for the letsencrypt standalone authenticator
     ACMEPORT=$(get_available_port)
