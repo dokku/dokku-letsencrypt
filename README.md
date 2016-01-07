@@ -6,6 +6,8 @@ dokku-letsencrypt is a plugin for [dokku][dokku] that gives the ability to autom
 
 **Note:** By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
 
+**Note:** If you like Let's Encrypt, please consider [donating to Let's Encrypt](https://letsencrypt.org/donate).
+
 ## Installation
 
 ```sh
