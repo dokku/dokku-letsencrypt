@@ -16,8 +16,8 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   APP="$2"
   APP_ROOT="$DOKKU_ROOT/$APP"
   APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
-  LETSENCRYPT_ROOT="$DOKKU_ROOT/.letsencrypt"
-  LETSENCRYPT_SERVERFILE="$APP_ROOT/letsencrypt-server"
+  LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
+  LETSENCRYPT_SERVERFILE="$LETSENCRYPT_ROOT/server"
 fi
 
 case "$1" in
@@ -37,6 +37,8 @@ case "$1" in
     ;;
 
   letsencrypt:server)
+    letsencrypt_create_root
+
     if [[ -z "$3" ]]; then
       LETSENCRYPT_SERVER=$(letsencrypt_get_server)
 
