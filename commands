@@ -28,6 +28,8 @@ case "$1" in
     # dynamically choose a port for the letsencrypt standalone authenticator
     ACMEPORT=$(get_available_port)
 
+    letsencrypt_check_email
+
     letsencrypt_update
     letsencrypt_acmeproxy_on
     letsencrypt_acme || true    # remove ACME proxy even if this fails

@@ -102,9 +102,37 @@ letsencrypt_set_email() {
   fi
 }
 
-letsencrypt_acme () {
-  letsencrypt_create_root
+letsencrypt_configure_and_get_dir() {
+  # build up a string of all certificate-controlling configuration settings.
+  # this will be used to determine the folder name for the account key and certificates
 
+  # get the selected ACME server
+  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
+    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
+  fi
+
+  # construct domain arguments
+  DOMAINS=$(dokku urls "$APP" | sed "s,\\s,\n,g" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | uniq | xargs)
+  DOMAIN_ARGS=''
+  for DOMAIN in $DOMAINS; do
+    dokku_log_verbose " - Domain '$DOMAIN'" >&2
+    DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
+  done
+
+  LETSENCRYPT_CONFIG="$LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
+  LETSENCRYPT_CONFIG_HASH=$(echo "$LETSENCRYPT_CONFIG" | sha1sum | awk '{print $1}')
+  LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
+  LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
+
+  # create the config dir (if not available) and store config settings
+  mkdir -p "$LETSENCRYPT_CONFIG_DIR"
+  echo "$LETSENCRYPT_CONFIG" > "$LETSENCRYPT_CONFIG_FILE"
+
+  echo "$LETSENCRYPT_CONFIG_DIR"
+}
+
+letsencrypt_check_email() {
   # check we have a valid e-mail address
   LETSENCRYPT_EMAIL=$(letsencrypt_get_email)
   if [ -z "$LETSENCRYPT_EMAIL" ]; then
@@ -113,35 +141,15 @@ letsencrypt_acme () {
     dokku_log_warn "  dokku letsencrypt:email $APP <e-mail>"
     return 1
   fi
+}
 
-  # get the selected ACME server
-  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
-  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
-    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
-  fi
+letsencrypt_acme () {
+  letsencrypt_create_root
 
   dokku_log_info1 "Getting letsencrypt certificate for $APP..."
 
-  # construct domain arguments
-  DOMAINS=$(dokku urls "$APP" | sed "s,\\s,\n,g" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | uniq | xargs)
-  DOMAIN_ARGS=''
-  for DOMAIN in $DOMAINS; do
-    dokku_log_verbose " - Domain '$DOMAIN'"
-    DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
-  done
-
-  # build up a string of all certificate-controlling configuration settings.
-  # this will be used to determine the folder name for the account key and certificates
-  LETSENCRYPT_CONFIG="$LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
-  LETSENCRYPT_CONFIG_HASH=$( echo $LETSENCRYPT_CONFIG | sha1sum | awk '{print $1}');
-  LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
-  LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
-
-  dokku_log_verbose " hash of all pertinent configuration settings is $LETSENCRYPT_CONFIG_HASH"
-
-  # create the config dir (if not available) and store config settings
-  mkdir -p "$LETSENCRYPT_CONFIG_DIR"
-  echo $LETSENCRYPT_CONFIG > $LETSENCRYPT_CONFIG_FILE
+  LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
+  LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
