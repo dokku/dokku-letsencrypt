@@ -185,3 +185,50 @@ letsencrypt_acme () {
   letsencrypt_link $LETSENCRYPT_CONFIG_DIR
   nginx_build_config "$APP"
 }
+
+letsencrypt_acme_revoke () {
+  letsencrypt_create_root
+
+  dokku_log_info1 "Revoking letsencrypt certificate for $APP..."
+
+  LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
+  LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
+
+  # run letsencrypt as a docker container using "certonly" mode
+  # port 80 of the standalone webserver will be forwarded by the proxy
+  set +e
+  docker run --rm \
+    -p $ACMEPORT:80 \
+    -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
+    m3adow/letsencrypt-simp_le:latest \
+    -f account_key.json \
+    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
+    --revoke \
+    $LETSENCRYPT_CONFIG
+
+  SIMPLE_RESULT=$?
+  set -e
+
+  # handle simp_le return codes
+  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
+  if [[ $SIMPLE_RESULT == 0 ]]; then
+    # certificate revoked
+    dokku_log_info1 "Certificate revoked successfully."
+
+  else
+    # error - don't try to link certificates
+    dokku_log_info1 "Certificate revocation failed (code $SIMPLE_RESULT)!"
+    return
+
+  fi
+
+  # move revoked certificates away
+  mv -f $LETSENCRYPT_CONFIG_DIR/fullchain.pem{,.revoked}
+  mv -f $LETSENCRYPT_CONFIG_DIR/chain.pem{,.revoked}
+  mv -f $LETSENCRYPT_CONFIG_DIR/cert.pem{,.revoked}
+  mv -f $LETSENCRYPT_CONFIG_DIR/key.pem{,.revoked}
+
+  # removing the certificate will automatically reconfigure nginx
+  dokku certs:remove $APP
+
+}

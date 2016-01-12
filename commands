@@ -39,6 +39,16 @@ case "$1" in
 
     ;;
 
+  letsencrypt:revoke)
+    dokku_log_info2 "Revoke Let's Encrypt certificate from $APP..."
+
+    letsencrypt_check_email
+    letsencrypt_update
+    letsencrypt_acme_revoke || true
+
+    dokku_log_verbose "done"
+    ;;
+
   letsencrypt:server)
     letsencrypt_create_root
 
@@ -81,6 +91,7 @@ case "$1" in
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:email <app>, Get e-mail address used as letsencrypt contact
     letsencrypt:email <app> <e-mail>, Set e-mail address used as letsencrypt contact
+    letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
     letsencrypt:server <app>, Get selected letsencrypt server for app
     letsencrypt:server <app> <server>, Select a letsencrypt server for app (server can be 'default' 'staging' or a URL)
 EOF
