@@ -82,6 +82,38 @@ letsencrypt_set() {
   fi
 }
 
+letsencrypt_format_timediff() {
+  TD="$1"
+
+  DAYS=$(( $TD / (24 * 60 * 60) ));
+  TD=$(($TD % (24 * 60 * 60) ));
+
+  HOURS=$(( $TD / (60 * 60)));
+  TD=$(($TD % (60 * 60)));
+
+  MINUTES=$(( $TD / 60 ));
+  SECS=$(( $TD % 60 ));
+
+  RES=""
+  if [ $DAYS -gt 0 ]; then
+    RES="${DAYS}d, "
+  fi
+
+  if [ $HOURS -gt 0 ]; then
+    RES="${RES}${HOURS}h, "
+  fi
+
+  if [ $MINUTES -gt 0 ]; then
+    RES="${RES}${MINUTES}m, "
+  fi
+
+  if [ $SECS -gt 0 ]; then
+    RES="${RES}${SECS}s, "
+  fi
+
+  echo $RES | sed -re 's/, ?$//g'
+}
+
 letsencrypt_configure_and_get_dir() {
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates

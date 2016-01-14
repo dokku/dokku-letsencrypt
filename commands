@@ -17,6 +17,9 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   APP_ROOT="$DOKKU_ROOT/$APP"
   APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
   LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
+
+  # by default, renew 30 days before expiry
+  LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
 fi
 
 case "$1" in
@@ -94,6 +97,36 @@ case "$1" in
       letsencrypt_set email $LETSENCRYPT_EMAIL
     fi
 
+    ;;
+
+  letsencrypt:renew-before)
+    letsencrypt_create_root
+
+    if [[ -z "$3" ]]; then
+      LETSENCRYPT_RENEWBEFORE=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT)
+      LETSENCRYPT_RENEWBEFORE_HUMAN=$(letsencrypt_format_timediff $LETSENCRYPT_RENEWBEFORE);
+      dokku_log_verbose "Will renew certificates for $APP $LETSENCRYPT_RENEWBEFORE_HUMAN before expiry"
+    else
+      LETSENCRYPT_RENEWBEFORE="$3"
+
+    dokku_log_verbose "'$LETSENCRYPT_RENEWBEFORE'"
+
+      RE_NUMBER='^[0-9]+$'
+      if [[ ! $LETSENCRYPT_RENEWBEFORE =~ $RE_NUMBER ]]; then
+        dokku_log_warn "Need a numeric input"
+        exit 1
+      fi
+
+      if [[ $LETSENCRYPT_RENEWBEFORE == 0 ]]; then
+        dokku_log_info2 "Restoring default renewal schedule for $APP"
+        letsencrypt_set renew_before ""
+      else
+        LETSENCRYPT_RENEWBEFORE_HUMAN=$(letsencrypt_format_timediff $LETSENCRYPT_RENEWBEFORE);
+        dokku_log_info2 "Setting time before let's encrypt certificate renewal to $LETSENCRYPT_RENEWBEFORE_HUMAN"
+        letsencrypt_set renew_before $LETSENCRYPT_RENEWBEFORE
+      fi
+
+    fi
     ;;
 
   help)
