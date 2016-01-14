@@ -17,8 +17,6 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   APP_ROOT="$DOKKU_ROOT/$APP"
   APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
   LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
-  LETSENCRYPT_SERVERFILE="$LETSENCRYPT_ROOT/server"
-  LETSENCRYPT_EMAILFILE="$LETSENCRYPT_ROOT/email"
 fi
 
 case "$1" in
@@ -53,7 +51,7 @@ case "$1" in
     letsencrypt_create_root
 
     if [[ -z "$3" ]]; then
-      LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+      LETSENCRYPT_SERVER=$(letsencrypt_get server)
 
       if [ -z "$LETSENCRYPT_SERVER" ]; then
         dokku_log_verbose "Let's Encrypt server for $APP is default"
@@ -62,7 +60,16 @@ case "$1" in
       fi
 
     else
-      letsencrypt_set_server $3
+
+      LETSENCRYPT_SERVER="$3"
+      if [ "$LETSENCRYPT_SERVER" == "default" ]; then
+        LETSENCRYPT_SERVER=""
+      elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
+        LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
+      fi
+
+      dokku_log_info2 "Setting Let's Encrypt Server for $APP to '$LETSENCRYPT_SERVER'"
+      letsencrypt_set server $LETSENCRYPT_SERVER
     fi
 
     ;;
@@ -71,7 +78,7 @@ case "$1" in
     letsencrypt_create_root
 
     if [[ -z "$3" ]]; then
-      LETSENCRYPT_EMAIL=$(letsencrypt_get_email)
+      LETSENCRYPT_EMAIL=$(letsencrypt_get email)
 
       if [ -z "$LETSENCRYPT_EMAIL" ]; then
         dokku_log_verbose "Let's Encrypt e-mail for $APP is not set"
@@ -81,7 +88,10 @@ case "$1" in
       fi
 
     else
-      letsencrypt_set_email $3
+
+      LETSENCRYPT_EMAIL="$3"
+      dokku_log_info2 "Setting Let's Encrypt e-mail address for $APP to '$LETSENCRYPT_EMAIL'"
+      letsencrypt_set email $LETSENCRYPT_EMAIL
     fi
 
     ;;

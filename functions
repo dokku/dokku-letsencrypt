@@ -63,42 +63,22 @@ letsencrypt_create_root () {
   fi
 }
 
-letsencrypt_get_server() {
-  # only cat if file exists
-  [ ! -f "$LETSENCRYPT_SERVERFILE" ] || cat $LETSENCRYPT_SERVERFILE
+letsencrypt_get() {
+  SETTINGNAME="$1"
+  SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
+  DEFAULT="$2"
+  [ ! -f "$SETTINGFILE" ] && echo $DEFAULT || cat $SETTINGFILE
 }
 
-letsencrypt_set_server() {
-  LETSENCRYPT_SERVER="${1,,}"
+letsencrypt_set() {
+  SETTINGNAME="$1"
+  SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
+  VALUE="$2"
 
-  if [ "$LETSENCRYPT_SERVER" == "default" ]; then
-    LETSENCRYPT_SERVER=""
-  elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
-    LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
-  fi
-
-  if [ -z "$LETSENCRYPT_SERVER" ]; then
-    dokku_log_info2 "Setting Let's Encrypt Server for $APP to default"
-    rm -f $LETSENCRYPT_SERVERFILE
+  if [ -z "$VALUE" ]; then
+    rm -f $SETTINGFILE
   else
-    dokku_log_info2 "Setting Let's Encrypt Server for $APP to '$LETSENCRYPT_SERVER'"
-    echo $LETSENCRYPT_SERVER > $LETSENCRYPT_SERVERFILE
-  fi
-}
-
-letsencrypt_get_email() {
-  # only cat if file exists
-  [ ! -f "$LETSENCRYPT_EMAILFILE" ] || cat $LETSENCRYPT_EMAILFILE
-}
-
-letsencrypt_set_email() {
-  LETSENCRYPT_EMAIL="${1}"
-  if [ -z "$LETSENCRYPT_EMAIL" ]; then
-    dokku_log_info2 "Removing Let's Encrypt e-mail information for $APP"
-    rm -f $LETSENCRYPT_EMAILFILE
-  else
-    dokku_log_info2 "Setting Let's Encrypt e-mail address for $APP to '$LETSENCRYPT_EMAIL'"
-    echo $LETSENCRYPT_EMAIL > $LETSENCRYPT_EMAILFILE
+    echo "$VALUE" > "$SETTINGFILE"
   fi
 }
 
@@ -107,7 +87,7 @@ letsencrypt_configure_and_get_dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  LETSENCRYPT_SERVER=$(letsencrypt_get_server)
+  LETSENCRYPT_SERVER=$(letsencrypt_get server)
   if [ ! -z "$LETSENCRYPT_SERVER" ]; then
     LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
   fi
@@ -134,7 +114,7 @@ letsencrypt_configure_and_get_dir() {
 
 letsencrypt_check_email() {
   # check we have a valid e-mail address
-  LETSENCRYPT_EMAIL=$(letsencrypt_get_email)
+  LETSENCRYPT_EMAIL=$(letsencrypt_get email)
   if [ -z "$LETSENCRYPT_EMAIL" ]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
