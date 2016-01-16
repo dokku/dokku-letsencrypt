@@ -8,6 +8,7 @@ fi
 
 source "$PLUGIN_BASE_PATH/letsencrypt/functions"
 source "$PLUGIN_BASE_PATH/nginx-vhosts/functions"
+source "$PLUGIN_BASE_PATH/certs/functions"
 source "$PLUGIN_BASE_PATH/common/functions"
 
 if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then

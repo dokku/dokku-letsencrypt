@@ -114,6 +114,32 @@ letsencrypt_format_timediff() {
   echo $RES | sed -re 's/, ?$//g'
 }
 
+letsencrypt_get_expirydate() {
+  # print SSL certificate expiry date as UNIX timestamp
+  date -d "$(openssl x509 -in $1 -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+}
+
+letsencrypt_is_active() {
+  # checks if app is secured by let's encrypt
+  APP=$1
+
+  # check if SSL is enabled
+  if [[ -z "$(is_ssl_enabled $APP)" ]]; then
+    return 1
+  fi
+
+  # determine where the currently installed certificate
+  # points to. if this is not a symlink, will return an empty string
+  CERT_LOCATION=$(readlink "$APP_SSL_ROOT/server.crt");
+
+  # check if certificate is symlink pointing to the let's encrypt certificate for "$APP"
+  if [[ "$CERT_LOCATION" != "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" ]]; then
+    return 2
+  fi
+
+  echo "$APP"
+}
+
 letsencrypt_configure_and_get_dir() {
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates
