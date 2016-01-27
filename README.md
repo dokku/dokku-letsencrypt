@@ -81,8 +81,8 @@ Be aware that Let's Encrypt is subject to [rate limiting](https://community.lets
 As a workaround, if you want to encrypt many applications, make sure to add a proper domain for each one and remove their default domain before running `dokku-letsencrypt`. For example, if your dokku domain is `dokku.example.com` and you want to encrypt your `foo` app:
 
 ```
-dokku domains:add foo.com
-dokku domains:remove foo.dokku.example.com
+dokku domains:add foo foo.com
+dokku domains:remove foo foo.dokku.example.com
 dokku letsencrypt foo
 ```
 
