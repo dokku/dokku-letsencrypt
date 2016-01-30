@@ -147,18 +147,14 @@ case "$1" in
 
     dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time left"
 
-    for app in $( dokku_apps ); do
-      if [[ $(letsencrypt_is_active $app) -eq $app ]]; then
-        expiry=$(letsencrypt_get_expirydate $app)
-        echo -e "$app\t$expiry"
-      fi
-    done | sort -nk2 |
+    letsencrypt_list_apps_and_expiry |
+      sort -nk2 |
+      while IFS=$'\t' read -r -a appExpiry; do
+        expire_date=$(date -d @${appExpiry[1]} +"%F %T")
+        expire_time=$(letsencrypt_format_timediff $(( ${appExpiry[1]} - $(date +%s) )) );
+        dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}"
+      done
 
-    while IFS=$'\t' read -r -a appExpiry; do
-      expire_date=$(date -d @${appExpiry[1]} +"%F %T")
-      expire_time=$(letsencrypt_format_timediff $(( ${appExpiry[1]} - $(date +%s) )) );
-      dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}"
-    done
 
 
     ;;

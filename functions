@@ -140,6 +140,18 @@ letsencrypt_is_active() {
   echo "$APP"
 }
 
+letsencrypt_list_apps_and_expiry() {
+  # list all letsencrypt-secured apps together with their expiry date
+  # prints a tab-separated list of app and expiry dates as UNIX timestamps
+
+  for app in $( dokku_apps ); do
+    if [[ $(letsencrypt_is_active $app) -eq $app ]]; then
+      expiry=$(letsencrypt_get_expirydate $app)
+      echo -e "$app\t$expiry"
+    fi
+  done
+}
+
 letsencrypt_configure_and_get_dir() {
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates
