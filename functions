@@ -116,7 +116,7 @@ letsencrypt_format_timediff() {
 
 letsencrypt_get_expirydate() {
   # print SSL certificate expiry date as UNIX timestamp
-  date -d "$(openssl x509 -in $1 -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  date -d "$(openssl x509 -in $DOKKU_ROOT/$1/tls/server.crt -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
 
 letsencrypt_is_active() {
