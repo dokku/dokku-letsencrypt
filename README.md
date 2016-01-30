@@ -19,15 +19,17 @@ $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 
 ```
 $ dokku help
-    letsencrypt <app>                  Enable or renew letsencrypt certificate for app
-    letsencrypt:auto-renew             Auto-renew all apps secured by letsencrypt if renewal is necessary
-    letsencrypt:auto-renew <app>       Auto-renew app if renewal is necessary
-    letsencrypt:email <app>            Get e-mail address used as letsencrypt contact
-    letsencrypt:email <app> <e-mail>   Set e-mail address used as letsencrypt contact
-    letsencrypt:ls                     List letsencrypt-secured apps with certificate expiry
-    letsencrypt:revoke <app>           Revoke letsencrypt certificate for app
-    letsencrypt:server <app>           Display selected letsencrypt server for app
-    letsencrypt:server <app> <server>  Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
+    letsencrypt <app>                       Enable or renew letsencrypt certificate for app
+    letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
+    letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
+    letsencrypt:email <app>                 Get e-mail address used as letsencrypt contact
+    letsencrypt:email <app> <e-mail>        Set e-mail address used as letsencrypt contact
+    letsencrypt:ls                          List letsencrypt-secured apps with certificate expiry
+    letsencrypt:renew-before <app>          Get renewal grace period for app
+    letsencrypt:renew-before <app> <time>   Set renewal grace period for app to <time> seconds
+    letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
+    letsencrypt:server <app>                Display selected letsencrypt server for app
+    letsencrypt:server <app> <server>       Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
 ```
 
 ## Usage

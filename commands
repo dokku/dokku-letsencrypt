@@ -208,6 +208,8 @@ case "$1" in
     letsencrypt:email <app>, Get e-mail address used as letsencrypt contact
     letsencrypt:email <app> <e-mail>, Set e-mail address used as letsencrypt contact
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
+    letsencrypt:renew-before <app>, Get renewal grace period for app
+    letsencrypt:renew-before <app> <time>, Set renewal grace period for app to <time> seconds
     letsencrypt:server <app>, Get selected letsencrypt server for app
     letsencrypt:server <app> <server>, Select a letsencrypt server for app (server can be 'default' 'staging' or a URL)
     letsencrypt:ls, List letsencrypt-secured apps with certificate expiry times
