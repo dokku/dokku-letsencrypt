@@ -65,9 +65,16 @@ letsencrypt_create_root () {
 
 letsencrypt_get() {
   SETTINGNAME="$1"
-  SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
   DEFAULT="$2"
+
+  if [ -z "$3" ]; then
+    SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
+  else
+    SETTINGFILE="$DOKKU_ROOT/$3/letsencrypt/$SETTINGNAME"
+  fi
+
   [ ! -f "$SETTINGFILE" ] && echo $DEFAULT || cat $SETTINGFILE
+
 }
 
 letsencrypt_set() {
