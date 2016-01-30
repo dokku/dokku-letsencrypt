@@ -19,11 +19,10 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
     APP_ROOT="$DOKKU_ROOT/$APP"
     APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
     LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
-
-    # by default, renew 30 days before expiry
-    LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
   fi
 
+  # by default, renew 30 days before expiry
+  LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
 fi
 
 case "$1" in
@@ -145,14 +144,16 @@ case "$1" in
 
   letsencrypt:ls)
 
-    dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time left"
+    dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
 
     letsencrypt_list_apps_and_expiry |
       sort -nk2 |
       while IFS=$'\t' read -r -a appExpiry; do
         expire_date=$(date -d @${appExpiry[1]} +"%F %T")
-        expire_time=$(letsencrypt_format_timediff $(( ${appExpiry[1]} - $(date +%s) )) );
-        dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}"
+        expire_time=$(letsencrypt_format_timediff ${appExpiry[3]});
+        renew_time=$(letsencrypt_format_timediff ${appExpiry[4]});
+        dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}" "${renew_time}"
+
       done
 
 

@@ -160,12 +160,20 @@ letsencrypt_is_active() {
 
 letsencrypt_list_apps_and_expiry() {
   # list all letsencrypt-secured apps together with their expiry date
-  # prints a tab-separated list of app and expiry dates as UNIX timestamps
+  # prints a tab-separated list of
+  #  * app name
+  #  * expiry dates as UNIX timestamp (seconds since epoch)
+  #  * selected renewal grace period (in seconds)
+  #  * time left on certificate (in seconds)
+  #  * time until renewal (in seconds)
 
   for app in $( dokku_apps ); do
     if [[ $(letsencrypt_is_active $app) -eq $app ]]; then
       expiry=$(letsencrypt_get_expirydate $app)
-      echo -e "$app\t$expiry"
+      grace_period=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT $app);
+      time_to_expiry=$(( $expiry - $(date +%s) ))
+      time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
+      echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
     fi
   done
 }
