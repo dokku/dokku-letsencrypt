@@ -22,6 +22,7 @@ $ dokku help
     letsencrypt <app>                  Enable or renew letsencrypt certificate for app
     letsencrypt:email <app>            Get e-mail address used as letsencrypt contact
     letsencrypt:email <app> <e-mail>   Set e-mail address used as letsencrypt contact
+    letsencrypt:ls                     List letsencrypt-secured apps with certificate expiry
     letsencrypt:revoke <app>           Revoke letsencrypt certificate for app
     letsencrypt:server <app>           Display selected letsencrypt server for app
     letsencrypt:server <app> <server>  Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
