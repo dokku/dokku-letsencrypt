@@ -12,19 +12,24 @@ source "$PLUGIN_BASE_PATH/certs/functions"
 source "$PLUGIN_BASE_PATH/common/functions"
 
 if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
-  [[ -z $2 ]] && echo "Please specify an app to run the command on" && exit 1
-  verify_app_name "$2"
-  APP="$2"
-  APP_ROOT="$DOKKU_ROOT/$APP"
-  APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
-  LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
 
-  # by default, renew 30 days before expiry
-  LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
+  if [[ ! -z $2 ]]; then
+    verify_app_name "$2"
+    APP="$2"
+    APP_ROOT="$DOKKU_ROOT/$APP"
+    APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
+    LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
+
+    # by default, renew 30 days before expiry
+    LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
+  fi
+
 fi
 
 case "$1" in
   letsencrypt)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+
     dokku_log_info2 "Let's Encrypt $APP..."
 
     # dynamically choose a port for the letsencrypt standalone authenticator
@@ -42,6 +47,8 @@ case "$1" in
     ;;
 
   letsencrypt:revoke)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+
     dokku_log_info2 "Revoke Let's Encrypt certificate from $APP..."
 
     letsencrypt_check_email
@@ -52,6 +59,8 @@ case "$1" in
     ;;
 
   letsencrypt:server)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+
     letsencrypt_create_root
 
     if [[ -z "$3" ]]; then
@@ -79,6 +88,8 @@ case "$1" in
     ;;
 
   letsencrypt:email)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+
     letsencrypt_create_root
 
     if [[ -z "$3" ]]; then
@@ -101,6 +112,8 @@ case "$1" in
     ;;
 
   letsencrypt:renew-before)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+
     letsencrypt_create_root
 
     if [[ -z "$3" ]]; then
