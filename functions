@@ -219,6 +219,8 @@ letsencrypt_acme () {
   LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
   LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
 
+  LETSENCRYPT_GRACE=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT)
+
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   set +e
@@ -228,6 +230,7 @@ letsencrypt_acme () {
     m3adow/letsencrypt-simp_le:latest \
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
+    --valid_min ${LETSENCRYPT_GRACE} \
     $LETSENCRYPT_CONFIG
 
   SIMPLE_RESULT=$?
