@@ -92,6 +92,11 @@ letsencrypt_set() {
 letsencrypt_format_timediff() {
   TD="$1"
 
+  if [ $TD -lt 0 ]; then
+    NEGATIVE_TD=1
+    TD=$(( - $TD ));
+  fi
+
   DAYS=$(( $TD / (24 * 60 * 60) ));
   TD=$(($TD % (24 * 60 * 60) ));
 
@@ -118,7 +123,13 @@ letsencrypt_format_timediff() {
     RES="${RES}${SECS}s, "
   fi
 
-  echo $RES | sed -re 's/, ?$//g'
+  RES=$( echo $RES | sed -re 's/, ?$//g');
+
+  if [[ $NEGATIVE_TD == 1 ]]; then
+    RES="${RES} ago"
+  fi
+
+  echo $RES
 }
 
 letsencrypt_get_expirydate() {
