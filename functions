@@ -145,14 +145,14 @@ letsencrypt_is_active() {
   # checks if app is secured by let's encrypt
   APP=$1
 
-  # check if SSL is enabled
-  if [[ -z "$(is_ssl_enabled $APP)" ]]; then
+  # check if SSL is enabled on per-app level
+  if [[ "$(is_ssl_enabled $APP)" != "app" ]]; then
     return 1
   fi
 
   # determine where the currently installed certificate
   # points to. if this is not a symlink, will return an empty string
-  CERT_LOCATION=$(readlink "$APP_SSL_ROOT/server.crt");
+  CERT_LOCATION=$(readlink "$DOKKU_ROOT/$APP/tls/server.crt");
 
   # check if certificate is symlink pointing to the let's encrypt certificate for "$APP"
   if [[ "$CERT_LOCATION" != "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" ]]; then
@@ -172,7 +172,8 @@ letsencrypt_list_apps_and_expiry() {
   #  * time until renewal (in seconds)
 
   for app in $( dokku_apps ); do
-    if [[ $(letsencrypt_is_active $app) -eq $app ]]; then
+    if [[ "$(letsencrypt_is_active $app)" == "$app" ]]; then
+
       expiry=$(letsencrypt_get_expirydate $app)
       grace_period=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT $app);
       time_to_expiry=$(( $expiry - $(date +%s) ))
