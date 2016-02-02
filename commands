@@ -122,8 +122,6 @@ case "$1" in
     else
       LETSENCRYPT_RENEWBEFORE="$3"
 
-    dokku_log_verbose "'$LETSENCRYPT_RENEWBEFORE'"
-
       RE_NUMBER='^[0-9]+$'
       if [[ ! $LETSENCRYPT_RENEWBEFORE =~ $RE_NUMBER ]]; then
         dokku_log_warn "Need a numeric input"
