@@ -15,6 +15,15 @@ dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the abili
 $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 ```
 
+### Upgrading from previous versions
+
+```sh
+# dokku 0.4+
+$ sudo dokku plugin:update dokku-letsencrypt
+```
+
+**IMPORTANT:** From version 0.7.0, the mechanism for storing configuration settings has changed and old settings will be ignored! Please be sure to re-configure `dokku-letsencrypt` (see the [configuration section below](#configuration))!
+
 ## Commands
 
 ```
@@ -22,14 +31,8 @@ $ dokku help
     letsencrypt <app>                       Enable or renew letsencrypt certificate for app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
-    letsencrypt:email <app>                 Get e-mail address used as letsencrypt contact
-    letsencrypt:email <app> <e-mail>        Set e-mail address used as letsencrypt contact
     letsencrypt:ls                          List letsencrypt-secured apps with certificate expiry
-    letsencrypt:renew-before <app>          Get renewal grace period for app
-    letsencrypt:renew-before <app> <time>   Set renewal grace period for app to <time> seconds
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
-    letsencrypt:server <app>                Display selected letsencrypt server for app
-    letsencrypt:server <app> <server>       Select a letsencrypt server for app. Server can be 'default', 'staging' or a URL
 ```
 
 ## Usage
@@ -37,9 +40,9 @@ $ dokku help
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku letsencrypt:email myapp your@email.tld
-=====> Setting Let's Encrypt e-mail address for myapp to 'your@email.tld'
-
+$ dokku config:set --no-restart myapp LE_EMAIL=your@email.tld
+-----> Setting config vars
+       LE_EMAIL: your@email.tld
 $ dokku letsencrypt myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
@@ -66,6 +69,17 @@ Status: Image is up to date for m3adow/letsencrypt-simp_le:latest
 ```
 
 Once the certificate is installed, you can use the `certs:*` built-in commands to edit and query your certificate.
+
+## Configuration
+`dokku-letsencrypt` uses the [Dokku environment variable manager](http://dokku.viewdocs.io/dokku/configuration-management/) for all configuration. The important environment variables are:
+
+Variable         | Default     | Description
+-----------------|-------------|-------------------------------------------------------------------------
+`LE_EMAIL`       | (none)      | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
+`LE_GRACEPERIOD` | 30 days     | Time in seconds left on a certificate before it should get renewed
+`LE_SERVER`      | default     | Which ACME server to use. Can be 'default', 'staging' or a URL
+
+You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 
 ## Design
 
