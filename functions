@@ -72,29 +72,23 @@ letsencrypt_create_root () {
 }
 
 letsencrypt_get() {
-  SETTINGNAME="$1"
-  DEFAULT="$2"
+  APP="$1"
+  SETTINGNAME="$2"
+  DEFAULT="$3"
 
-  if [ -z "$3" ]; then
-    SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
-  else
-    SETTINGFILE="$DOKKU_ROOT/$3/letsencrypt/$SETTINGNAME"
-  fi
-
-  [ ! -f "$SETTINGFILE" ] && echo $DEFAULT || cat $SETTINGFILE
-
-}
-
-letsencrypt_set() {
-  SETTINGNAME="$1"
-  SETTINGFILE="$LETSENCRYPT_ROOT/$SETTINGNAME"
-  VALUE="$2"
+  # try getting setting from app config
+  VALUE=$(dokku config:get $APP $SETTINGNAME)
 
   if [ -z "$VALUE" ]; then
-    rm -f $SETTINGFILE
-  else
-    echo "$VALUE" > "$SETTINGFILE"
+    # try getting setting from global config
+    VALUE=$(dokku config:get --global $SETTINGNAME)
   fi
+
+  if [ -z "$VALUE" ]; then
+    VALUE="$DEFAULT"
+  fi
+
+  echo "$VALUE"
 }
 
 letsencrypt_format_timediff() {
@@ -179,7 +173,7 @@ letsencrypt_list_apps_and_expiry() {
     if [[ "$(letsencrypt_is_active $app)" == "$app" ]]; then
 
       expiry=$(letsencrypt_get_expirydate $app)
-      grace_period=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT $app);
+      grace_period=$(letsencrypt_get $app LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
       time_to_expiry=$(( $expiry - $(date +%s) ))
       time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
@@ -192,9 +186,11 @@ letsencrypt_configure_and_get_dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  LETSENCRYPT_SERVER=$(letsencrypt_get server)
-  if [ ! -z "$LETSENCRYPT_SERVER" ]; then
-    LETSENCRYPT_SERVER="--server $LETSENCRYPT_SERVER"
+  LETSENCRYPT_SERVER=$(letsencrypt_get $APP LE_SERVER)
+  if [ -z "$LETSENCRYPT_SERVER" ] ||  [ "$LETSENCRYPT_SERVER" == "default" ]; then
+    LETSENCRYPT_SERVER="https://acme-v01.api.letsencrypt.org/directory"
+  elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
+    LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
   fi
 
   # construct domain arguments
@@ -205,7 +201,7 @@ letsencrypt_configure_and_get_dir() {
     DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
   done
 
-  LETSENCRYPT_CONFIG="$LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
+  LETSENCRYPT_CONFIG="--server $LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
   LETSENCRYPT_CONFIG_HASH=$(echo "$LETSENCRYPT_CONFIG" | sha1sum | awk '{print $1}')
   LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
   LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
@@ -219,11 +215,11 @@ letsencrypt_configure_and_get_dir() {
 
 letsencrypt_check_email() {
   # check we have a valid e-mail address
-  LETSENCRYPT_EMAIL=$(letsencrypt_get email)
+  LETSENCRYPT_EMAIL=$(letsencrypt_get $APP LE_EMAIL)
   if [ -z "$LETSENCRYPT_EMAIL" ]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku letsencrypt:email $APP <e-mail>"
+    dokku_log_warn "  dokku config:set --no-restart $APP LE_EMAIL=<e-mail>"
     return 1
   fi
 }
@@ -236,7 +232,7 @@ letsencrypt_acme () {
   LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
   LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
 
-  LETSENCRYPT_GRACE=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT)
+  LETSENCRYPT_GRACE=$(letsencrypt_get $APP LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT)
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy

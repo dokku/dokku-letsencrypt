@@ -22,7 +22,7 @@ if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
   fi
 
   # by default, renew 30 days before expiry
-  LETSENCRYPT_RENEWBEFORE_DEFAULT=$((30 * 24 * 60 * 60));
+  LETSENCRYPT_GRACEPERIOD_DEFAULT=$((30 * 24 * 60 * 60));
 fi
 
 case "$1" in
@@ -55,89 +55,6 @@ case "$1" in
     letsencrypt_acme_revoke || true
 
     dokku_log_verbose "done"
-    ;;
-
-  letsencrypt:server)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
-
-    letsencrypt_create_root
-
-    if [[ -z "$3" ]]; then
-      LETSENCRYPT_SERVER=$(letsencrypt_get server)
-
-      if [ -z "$LETSENCRYPT_SERVER" ]; then
-        dokku_log_verbose "Let's Encrypt server for $APP is default"
-      else
-        dokku_log_verbose "Let's Encrypt server for $APP is '$LETSENCRYPT_SERVER'"
-      fi
-
-    else
-
-      LETSENCRYPT_SERVER="$3"
-      if [ "$LETSENCRYPT_SERVER" == "default" ]; then
-        LETSENCRYPT_SERVER=""
-      elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
-        LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
-      fi
-
-      dokku_log_info2 "Setting Let's Encrypt Server for $APP to '$LETSENCRYPT_SERVER'"
-      letsencrypt_set server $LETSENCRYPT_SERVER
-    fi
-
-    ;;
-
-  letsencrypt:email)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
-
-    letsencrypt_create_root
-
-    if [[ -z "$3" ]]; then
-      LETSENCRYPT_EMAIL=$(letsencrypt_get email)
-
-      if [ -z "$LETSENCRYPT_EMAIL" ]; then
-        dokku_log_verbose "Let's Encrypt e-mail for $APP is not set"
-        dokku_log_verbose "  to set, use dokku letsencrypt:email $APP <email>"
-      else
-        dokku_log_verbose "Let's Encrypt e-mail for $APP is '$LETSENCRYPT_EMAIL'"
-      fi
-
-    else
-
-      LETSENCRYPT_EMAIL="$3"
-      dokku_log_info2 "Setting Let's Encrypt e-mail address for $APP to '$LETSENCRYPT_EMAIL'"
-      letsencrypt_set email $LETSENCRYPT_EMAIL
-    fi
-
-    ;;
-
-  letsencrypt:renew-before)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
-
-    letsencrypt_create_root
-
-    if [[ -z "$3" ]]; then
-      LETSENCRYPT_RENEWBEFORE=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT)
-      LETSENCRYPT_RENEWBEFORE_HUMAN=$(letsencrypt_format_timediff $LETSENCRYPT_RENEWBEFORE);
-      dokku_log_verbose "Will renew certificates for $APP $LETSENCRYPT_RENEWBEFORE_HUMAN before expiry"
-    else
-      LETSENCRYPT_RENEWBEFORE="$3"
-
-      RE_NUMBER='^[0-9]+$'
-      if [[ ! $LETSENCRYPT_RENEWBEFORE =~ $RE_NUMBER ]]; then
-        dokku_log_warn "Need a numeric input"
-        exit 1
-      fi
-
-      if [[ $LETSENCRYPT_RENEWBEFORE == 0 ]]; then
-        dokku_log_info2 "Restoring default renewal schedule for $APP"
-        letsencrypt_set renew_before ""
-      else
-        LETSENCRYPT_RENEWBEFORE_HUMAN=$(letsencrypt_format_timediff $LETSENCRYPT_RENEWBEFORE);
-        dokku_log_info2 "Setting time before let's encrypt certificate renewal to $LETSENCRYPT_RENEWBEFORE_HUMAN"
-        letsencrypt_set renew_before $LETSENCRYPT_RENEWBEFORE
-      fi
-
-    fi
     ;;
 
   letsencrypt:ls)
@@ -182,7 +99,7 @@ case "$1" in
 
     else
       expiry=$(letsencrypt_get_expirydate $APP)
-      grace_period=$(letsencrypt_get renew_before $LETSENCRYPT_RENEWBEFORE_DEFAULT);
+      grace_period=$(letsencrypt_get $APP LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
       time_to_expiry=$(( $expiry - $(date +%s) ))
       time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
 
@@ -203,13 +120,7 @@ case "$1" in
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
-    letsencrypt:email <app>, Get e-mail address used as letsencrypt contact
-    letsencrypt:email <app> <e-mail>, Set e-mail address used as letsencrypt contact
-    letsencrypt:renew-before <app>, Get renewal grace period for app
-    letsencrypt:renew-before <app> <time>, Set renewal grace period for app to <time> seconds
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
-    letsencrypt:server <app>, Get selected letsencrypt server for app
-    letsencrypt:server <app> <server>, Select a letsencrypt server for app (server can be 'default' 'staging' or a URL)
     letsencrypt:ls, List letsencrypt-secured apps with certificate expiry times
 EOF
 )
