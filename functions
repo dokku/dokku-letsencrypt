@@ -173,7 +173,7 @@ letsencrypt_list_apps_and_expiry() {
     if [[ "$(letsencrypt_is_active $app)" == "$app" ]]; then
 
       expiry=$(letsencrypt_get_expirydate $app)
-      grace_period=$(letsencrypt_get $app LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
+      grace_period=$(letsencrypt_get $app DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
       time_to_expiry=$(( $expiry - $(date +%s) ))
       time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
@@ -186,7 +186,7 @@ letsencrypt_configure_and_get_dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  LETSENCRYPT_SERVER=$(letsencrypt_get $APP LE_SERVER)
+  LETSENCRYPT_SERVER=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_SERVER)
   if [ -z "$LETSENCRYPT_SERVER" ] ||  [ "$LETSENCRYPT_SERVER" == "default" ]; then
     LETSENCRYPT_SERVER="https://acme-v01.api.letsencrypt.org/directory"
   elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
@@ -215,11 +215,11 @@ letsencrypt_configure_and_get_dir() {
 
 letsencrypt_check_email() {
   # check we have a valid e-mail address
-  LETSENCRYPT_EMAIL=$(letsencrypt_get $APP LE_EMAIL)
+  LETSENCRYPT_EMAIL=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_EMAIL)
   if [ -z "$LETSENCRYPT_EMAIL" ]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku config:set --no-restart $APP LE_EMAIL=<e-mail>"
+    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
     return 1
   fi
 }
@@ -232,7 +232,7 @@ letsencrypt_acme () {
   LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
   LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
 
-  LETSENCRYPT_GRACE=$(letsencrypt_get $APP LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT)
+  LETSENCRYPT_GRACE=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT)
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy

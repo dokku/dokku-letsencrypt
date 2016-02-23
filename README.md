@@ -40,9 +40,9 @@ $ dokku help
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku config:set --no-restart myapp LE_EMAIL=your@email.tld
+$ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 -----> Setting config vars
-       LE_EMAIL: your@email.tld
+       DOKKU_LETSENCRYPT_EMAIL: your@email.tld
 $ dokku letsencrypt myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
@@ -73,11 +73,11 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 ## Configuration
 `dokku-letsencrypt` uses the [Dokku environment variable manager](http://dokku.viewdocs.io/dokku/configuration-management/) for all configuration. The important environment variables are:
 
-Variable         | Default     | Description
------------------|-------------|-------------------------------------------------------------------------
-`LE_EMAIL`       | (none)      | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
-`LE_GRACEPERIOD` | 30 days     | Time in seconds left on a certificate before it should get renewed
-`LE_SERVER`      | default     | Which ACME server to use. Can be 'default', 'staging' or a URL
+Variable                        | Default     | Description
+--------------------------------|-------------|-------------------------------------------------------------------------
+`DOKKU_LETSENCRYPT_EMAIL`       | (none)      | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
+`DOKKU_LETSENCRYPT_GRACEPERIOD` | 30 days     | Time in seconds left on a certificate before it should get renewed
+`DOKKU_LETSENCRYPT_SERVER`      | default     | Which ACME server to use. Can be 'default', 'staging' or a URL
 
 You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 

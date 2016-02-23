@@ -99,7 +99,7 @@ case "$1" in
 
     else
       expiry=$(letsencrypt_get_expirydate $APP)
-      grace_period=$(letsencrypt_get $APP LE_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
+      grace_period=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
       time_to_expiry=$(( $expiry - $(date +%s) ))
       time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
 
