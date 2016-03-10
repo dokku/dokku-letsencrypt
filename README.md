@@ -19,7 +19,7 @@ $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 
 ```sh
 # dokku 0.4+
-$ sudo dokku plugin:update dokku-letsencrypt
+$ sudo dokku plugin:update letsencrypt
 ```
 
 **IMPORTANT:** From version 0.7.0, the mechanism for storing configuration settings has changed and old settings will be ignored! Please be sure to re-configure `dokku-letsencrypt` (see the [configuration section below](#configuration))!
