@@ -144,7 +144,7 @@ letsencrypt_is_active() {
   APP=$1
 
   # check if SSL is enabled on per-app level
-  if [[ "$(is_ssl_enabled $APP)" != "app" ]]; then
+  if [[ "$(is_ssl_enabled $APP)" ]]; then
     return 1
   fi
 
@@ -169,9 +169,9 @@ letsencrypt_list_apps_and_expiry() {
   #  * time left on certificate (in seconds)
   #  * time until renewal (in seconds)
 
-  for app in $( dokku_apps ); do
-    if [[ "$(letsencrypt_is_active $app)" == "$app" ]]; then
-
+  for app in $(dokku_apps); do
+    if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
+    if [[ "$(letsencrypt_is_active $app)" ]]; then
       expiry=$(letsencrypt_get_expirydate $app)
       grace_period=$(letsencrypt_get $app DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
       time_to_expiry=$(( $expiry - $(date +%s) ))
@@ -194,7 +194,7 @@ letsencrypt_configure_and_get_dir() {
   fi
 
   # construct domain arguments
-  DOMAINS=$(dokku urls "$APP" | sed "s,\\s,\n,g" | sed -re "s,https?://,," | sed -re "s,\\*\\.,," | uniq | xargs)
+  DOMAINS=$(dokku domains "$APP" | sed "1,/=====> ${APP} Domain Names/d")
   DOMAIN_ARGS=''
   for DOMAIN in $DOMAINS; do
     dokku_log_verbose " - Domain '$DOMAIN'" >&2
