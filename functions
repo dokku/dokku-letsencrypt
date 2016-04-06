@@ -194,7 +194,7 @@ letsencrypt_configure_and_get_dir() {
   fi
 
   # construct domain arguments
-  DOMAINS=$(dokku domains "$APP" | sed "1,/=====> ${APP} Domain Names/d")
+  DOMAINS=$(get_app_domains "$APP")
   DOMAIN_ARGS=''
   for DOMAIN in $DOMAINS; do
     dokku_log_verbose " - Domain '$DOMAIN'" >&2
@@ -202,6 +202,7 @@ letsencrypt_configure_and_get_dir() {
   done
 
   LETSENCRYPT_CONFIG="--server $LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
+
   LETSENCRYPT_CONFIG_HASH=$(echo "$LETSENCRYPT_CONFIG" | sha1sum | awk '{print $1}')
   LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
   LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
