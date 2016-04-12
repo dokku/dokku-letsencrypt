@@ -17,6 +17,8 @@ $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 
 ### Upgrading from previous versions
 
+**IMPORTANT:** Some users are currently reporting problems with using dokku-letsencrypt in combination with Dokku 0.5 and later. While these should theoretically be fixed by now, you might want to try out the upgrade in a staging environment before upgrading production. You can check out [#47](https://github.com/dokku/dokku-letsencrypt/issues/47) for a list of reported-working configurations.
+
 ```sh
 # dokku 0.4+
 $ sudo dokku plugin:update letsencrypt
