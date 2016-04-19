@@ -47,7 +47,7 @@ letsencrypt_acmeproxy_off() {
 
 letsencrypt_update () {
   dokku_log_info1 "Updating letsencrypt docker image..."
-  docker pull m3adow/letsencrypt-simp_le:latest
+  docker pull sseemayer/letsencrypt-simp_le:latest
   dokku_log_verbose "done"
 }
 
@@ -241,7 +241,7 @@ letsencrypt_acme () {
   docker run --rm \
     -p $ACMEPORT:80 \
     -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
-    m3adow/letsencrypt-simp_le:latest \
+    sseemayer/letsencrypt-simp_le:latest \
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --valid_min ${LETSENCRYPT_GRACE} \
@@ -285,7 +285,7 @@ letsencrypt_acme_revoke () {
   docker run --rm \
     -p $ACMEPORT:80 \
     -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
-    m3adow/letsencrypt-simp_le:latest \
+    sseemayer/letsencrypt-simp_le:latest \
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --revoke \
