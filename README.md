@@ -107,7 +107,7 @@ dokku domains:remove foo foo.dokku.example.com
 dokku letsencrypt foo
 ```
 
-While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku letsencrypt:server myapp staging` to enjoy much higher rate limits and switching back to the real server by running `dokku letsencrypt:server myapp default` once you are ready.
+While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_SERVER=staging` to enjoy much higher rate limits and switching back to the real server by running `dokku config:unset --no-restart myapp DOKKU_LETSENCRYPT_SERVER` once you are ready.
 
 ## License
 
