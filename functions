@@ -44,6 +44,24 @@ letsencrypt_link () {
   ln -nsf "$LETSENCRYPT_ROOT/certs/current/fullchain.pem" "$APP_SSL_ROOT/server.crt"
 }
 
+letsencrypt_cleanup () {
+  CURRENT_CONFIG_HASH="$(basename $(readlink $LETSENCRYPT_ROOT/certs/current))"
+
+  if [ -z "$CURRENT_CONFIG_HASH" ] || [[ ! -d "$LETSENCRYPT_ROOT/certs/$CURRENT_CONFIG_HASH" ]]; then
+    dokku_log_warn "Cannot resolve the 'current' certificate directory!"
+    return 1
+  fi
+
+  dokku_log_info2 "Cleaning up stale certificate directories for $APP"
+    dokku_log_info1 "  - current config hash $CURRENT_CONFIG_HASH"
+
+  for certdir in $(ls $LETSENCRYPT_ROOT/certs); do
+    if [[ "$certdir" == "current" ]] || [[ "$certdir" == "$CURRENT_CONFIG_HASH" ]]; then continue; fi
+    dokku_log_info1 "  - stale directory $certdir"
+    rm -rf "$LETSENCRYPT_ROOT/certs/$certdir"
+  done
+}
+
 letsencrypt_create_root () {
   # Set up folders
   if [ ! -d "$LETSENCRYPT_ROOT" ]; then

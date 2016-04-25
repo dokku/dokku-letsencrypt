@@ -58,6 +58,12 @@ case "$1" in
     dokku_log_verbose "done"
     ;;
 
+  letsencrypt:cleanup)
+    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
+    letsencrypt_cleanup
+
+    ;;
+
   letsencrypt:ls)
 
     dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
@@ -121,6 +127,7 @@ case "$1" in
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
+    letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
     letsencrypt:ls, List letsencrypt-secured apps with certificate expiry times
 EOF
