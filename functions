@@ -1,26 +1,6 @@
 #!/usr/bin/env bash
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
-reload_nginx () {
-  case "$DOKKU_DISTRO" in
-    ubuntu)
-      sudo /etc/init.d/nginx reload > /dev/null
-      ;;
-
-    debian)
-      sudo /usr/sbin/invoke-rc.d nginx reload > /dev/null
-      ;;
-
-    opensuse)
-      sudo /sbin/service nginx reload > /dev/null
-      ;;
-
-    arch)
-      sudo /usr/bin/systemctl reload nginx
-      ;;
-  esac
-}
-
 letsencrypt_acmeproxy_on () {
   dokku_log_info1 "Enabling ACME proxy for $APP..."
 
@@ -32,7 +12,7 @@ letsencrypt_acmeproxy_on () {
   cp "$(dirname "$0")/templates/letsencrypt.conf" "$APP_ROOT/nginx.conf.d"
   sed -i "s,{ACMEPORT},$ACMEPORT," "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
 
-  reload_nginx
+  restart_nginx
 }
 
 letsencrypt_acmeproxy_off() {
@@ -42,7 +22,7 @@ letsencrypt_acmeproxy_off() {
     rm "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
   fi
 
-  reload_nginx
+  restart_nginx
 }
 
 letsencrypt_update () {
