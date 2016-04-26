@@ -11,15 +11,21 @@ dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the abili
 ## Installation
 
 ```sh
-# dokku 0.4+ or 0.5+
+# dokku 0.5+
 $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
+
+# dokku 0.4
+$ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git --committish dokku-0.4
 ```
 
 ### Upgrading from previous versions
 
 ```sh
-# dokku 0.4+ or 0.5+
+# dokku 0.5+
 $ sudo dokku plugin:update letsencrypt
+
+# dokku 0.4
+$ sudo dokku plugin:update letsencrypt dokku-0.4
 ```
 
 ## Commands
