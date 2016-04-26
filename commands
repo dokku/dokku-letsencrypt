@@ -1,146 +1,40 @@
 #!/usr/bin/env bash
+[[ " help letsencrypt:help " == *" $1 "* ]] || exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
-source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
-
-PLUGIN_BASE_PATH="$PLUGIN_PATH"
-if [[ -n $DOKKU_API_VERSION ]]; then
-  PLUGIN_BASE_PATH="$PLUGIN_ENABLED_PATH"
-fi
-
-source "$PLUGIN_BASE_PATH/letsencrypt/functions"
-source "$PLUGIN_BASE_PATH/nginx-vhosts/functions"
-source "$PLUGIN_BASE_PATH/certs/functions"
-source "$PLUGIN_BASE_PATH/common/functions"
-
-if [[ $1 == letsencrypt || $1 == letsencrypt:* ]]; then
-
-  if [[ ! -z $2 ]]; then
-    verify_app_name "$2"
-    APP="$2"
-    APP_ROOT="$DOKKU_ROOT/$APP"
-    APP_SSL_ROOT="$DOKKU_ROOT/$APP/tls"
-    LETSENCRYPT_ROOT="$APP_ROOT/letsencrypt"
-  fi
-
-  # by default, renew 30 days before expiry
-  LETSENCRYPT_GRACEPERIOD_DEFAULT=$((30 * 24 * 60 * 60));
-fi
 
 case "$1" in
-  letsencrypt)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
 
-    dokku_log_info2 "Let's Encrypt $APP..."
+  help | letsencrypt:help)
 
-    # dynamically choose a port for the letsencrypt standalone authenticator
-    ACMEPORT=$(get_available_port)
+    help_content_func() {
+      declare desc="return letsencrypt plugin help content"
 
-    letsencrypt_check_email
-
-    letsencrypt_update
-    letsencrypt_acmeproxy_on
-    letsencrypt_acme || true    # remove ACME proxy even if this fails
-    letsencrypt_acmeproxy_off
-
-    dokku_log_verbose "done"
-
-    ;;
-
-  letsencrypt:revoke)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
-
-    dokku_log_info2 "Revoke Let's Encrypt certificate from $APP..."
-
-    letsencrypt_check_email
-    letsencrypt_update
-    letsencrypt_acme_revoke || true
-
-    dokku_log_verbose "done"
-    ;;
-
-  letsencrypt:cleanup)
-    [[ -z $APP ]] && echo "Please specify an app to run the command on" && exit 1
-    letsencrypt_cleanup
-
-    ;;
-
-  letsencrypt:ls)
-
-    dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
-
-    letsencrypt_list_apps_and_expiry |
-      sort -nk2 |
-      while IFS=$'\t' read -r -a appExpiry; do
-        expire_date=$(date -d @${appExpiry[1]} +"%F %T")
-        expire_time=$(letsencrypt_format_timediff ${appExpiry[3]});
-        renew_time=$(letsencrypt_format_timediff ${appExpiry[4]});
-        dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}" "${renew_time}"
-
-      done
-
-    ;;
-
-  letsencrypt:auto-renew)
-
-    if [ -z "$APP" ]; then
-      dokku_log_info2 "Auto-renewing all apps..."
-
-      # For all apps, sorted by ascending time left until renewal.
-      # This way, we'll prioritize apps that need to be renewed soon
-      # if we should hit a rate limit along the way.
-      letsencrypt_list_apps_and_expiry |
-        sort -nk5 |
-        while IFS=$'\t' read -r -a appExpiry; do
-
-          if [[ ${appExpiry[4]} -lt 0 ]]; then
-            dokku_log_info1 "${appExpiry[0]} needs renewal"
-            dokku letsencrypt ${appExpiry[0]}
-          else
-            days_left=$(letsencrypt_format_timediff ${appExpiry[4]})
-            dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
-          fi
-
-        done
-
-      dokku_log_info2 "Finished auto-renewal"
-
-    else
-      expiry=$(letsencrypt_get_expirydate $APP)
-      grace_period=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
-      time_to_expiry=$(( $expiry - $(date +%s) ))
-      time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
-
-      if [[ $time_to_renewal -lt 0 ]]; then
-        dokku_log_info2 "Auto-renew $APP..."
-        dokku letsencrypt $APP
-      else
-        days_left=$(letsencrypt_format_timediff $time_to_renewal)
-        dokku_log_verbose "$APP still has $days_left days left before renewal"
-      fi
-
-    fi
-
-    ;;
-
-  help)
-    HELP=$(cat<<EOF
+      cat<<help_content
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
+    letsencrypt:help, Display letsencrypt help
     letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
     letsencrypt:ls, List letsencrypt-secured apps with certificate expiry times
-EOF
-)
-    if [[ -n $DOKKU_API_VERSION ]]; then
-      echo "$HELP"
+help_content
+    }
+
+    if [[ $1 = "letsencrypt:help" ]]; then 
+      echo -e 'Usage: dokku letsencrypt[:COMMAND]'
+      echo ''
+      echo 'Automatically retrieve and install Lets Encrypt certificates.'
+      echo ''
+      echo 'Additional commands:'
+      help_content_func | sort | column -c2 -t -s,
     else
-      cat && echo "$HELP"
+      help_content_func
     fi
-    ;;
+
+  ;;
 
   *)
     exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
-    ;;
+  ;;
 
 esac

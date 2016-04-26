@@ -1,165 +1,100 @@
 #!/usr/bin/env bash
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_acmeproxy_on () {
-  dokku_log_info1 "Enabling ACME proxy for $APP..."
-
-  if [[ ! -d "$APP_ROOT/nginx.conf.d" ]]; then
-    mkdir "$APP_ROOT/nginx.conf.d"
-  fi
-
-  rm -f "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
-  cp "$(dirname "$0")/templates/letsencrypt.conf" "$APP_ROOT/nginx.conf.d"
-  sed -i "s,{ACMEPORT},$ACMEPORT," "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
-
-  restart_nginx
-}
-
-letsencrypt_acmeproxy_off() {
-  dokku_log_info1 "Disabling ACME proxy for $APP..."
-
-  if [[ -f "$APP_ROOT/nginx.conf.d/letsencrypt.conf" ]]; then
-    rm "$APP_ROOT/nginx.conf.d/letsencrypt.conf"
-  fi
-
-  restart_nginx
-}
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
 
 letsencrypt_update () {
+  declare desc="update the docker image used for ACME validation"
   dokku_log_info1 "Updating letsencrypt docker image..."
   docker pull dokkupaas/letsencrypt-simp_le:latest
-  dokku_log_verbose "done"
-}
-
-letsencrypt_link () {
-  dokku_log_info1 "Symlinking let's encrypt certificates"
-  LETSENCRYPT_CONFIG_DIR=$1
-
-  # link the current config directory to 'current'
-  ln -nsf $LETSENCRYPT_CONFIG_DIR $LETSENCRYPT_ROOT/certs/current
-
-  # link the certificates from LETSENCRYPT_ROOT to the app's TLS certificate storage
-  mkdir -p "$APP_SSL_ROOT"
-  ln -nsf "$LETSENCRYPT_ROOT/certs/current/key.pem" "$APP_SSL_ROOT/server.key"
-  ln -nsf "$LETSENCRYPT_ROOT/certs/current/fullchain.pem" "$APP_SSL_ROOT/server.crt"
-}
-
-letsencrypt_cleanup () {
-  CURRENT_CONFIG_HASH="$(basename $(readlink $LETSENCRYPT_ROOT/certs/current))"
-
-  if [ -z "$CURRENT_CONFIG_HASH" ] || [[ ! -d "$LETSENCRYPT_ROOT/certs/$CURRENT_CONFIG_HASH" ]]; then
-    dokku_log_warn "Cannot resolve the 'current' certificate directory!"
-    return 1
-  fi
-
-  dokku_log_info2 "Cleaning up stale certificate directories for $APP"
-    dokku_log_info1 "  - current config hash $CURRENT_CONFIG_HASH"
-
-  for certdir in $(ls $LETSENCRYPT_ROOT/certs); do
-    if [[ "$certdir" == "current" ]] || [[ "$certdir" == "$CURRENT_CONFIG_HASH" ]]; then continue; fi
-    dokku_log_info1 "  - stale directory $certdir"
-    rm -rf "$LETSENCRYPT_ROOT/certs/$certdir"
-  done
+  dokku_log_verbose "done updating"
 }
 
 letsencrypt_create_root () {
-  # Set up folders
-  if [ ! -d "$LETSENCRYPT_ROOT" ]; then
-    mkdir -p "$LETSENCRYPT_ROOT"
-  fi
-}
+  declare desc="Ensure the let's encrypt root directory exists"
+  local app="$1"; verify_app_name "$app"
 
-letsencrypt_get() {
-  APP="$1"
-  SETTINGNAME="$2"
-  DEFAULT="$3"
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
 
-  # try getting setting from app config
-  VALUE=$(dokku config:get $APP $SETTINGNAME)
-
-  if [ -z "$VALUE" ]; then
-    # try getting setting from global config
-    VALUE=$(dokku config:get --global $SETTINGNAME)
-  fi
-
-  if [ -z "$VALUE" ]; then
-    VALUE="$DEFAULT"
-  fi
-
-  echo "$VALUE"
+  mkdir -p $le_root
 }
 
 letsencrypt_format_timediff() {
-  TD="$1"
+  declare desc="format a time difference in seconds into a human-readable string"
+  local td="$1"
+  local negative_td=0
 
-  if [ $TD -lt 0 ]; then
-    NEGATIVE_TD=1
-    TD=$(( - $TD ));
+  if [ $td -lt 0 ]; then
+    negative_td=1
+    td=$(( - $td ));
   fi
 
-  DAYS=$(( $TD / (24 * 60 * 60) ));
-  TD=$(($TD % (24 * 60 * 60) ));
+  local days=$(( $td / (24 * 60 * 60) ));
+  td=$(($td % (24 * 60 * 60) ));
 
-  HOURS=$(( $TD / (60 * 60)));
-  TD=$(($TD % (60 * 60)));
+  local hours=$(( $td / (60 * 60)));
+  td=$(($td % (60 * 60)));
 
-  MINUTES=$(( $TD / 60 ));
-  SECS=$(( $TD % 60 ));
+  local minutes=$(( $td / 60 ));
+  local secs=$(( $td % 60 ));
 
-  RES=""
-  if [ $DAYS -gt 0 ]; then
-    RES="${DAYS}d, "
+  local res=""
+  if [ $days -gt 0 ]; then
+    res="${days}d, "
   fi
 
-  if [ $HOURS -gt 0 ]; then
-    RES="${RES}${HOURS}h, "
+  if [ $hours -gt 0 ]; then
+    res="${res}${hours}h, "
   fi
 
-  if [ $MINUTES -gt 0 ]; then
-    RES="${RES}${MINUTES}m, "
+  if [ $minutes -gt 0 ]; then
+    res="${res}${minutes}m, "
   fi
 
-  if [ $SECS -gt 0 ]; then
-    RES="${RES}${SECS}s, "
+  if [ $secs -gt 0 ]; then
+    res="${res}${secs}s, "
   fi
 
-  RES=$( echo $RES | sed -re 's/, ?$//g');
+  # remove trailing comma
+  res="$( echo $res | sed -re 's/, ?$//g')";
 
-  if [[ $NEGATIVE_TD == 1 ]]; then
-    RES="${RES} ago"
+  if [[ $negative_td == 1 ]]; then
+    res="${res} ago"
   fi
 
-  echo $RES
+  echo "$res"
 }
 
 letsencrypt_get_expirydate() {
-  # print SSL certificate expiry date as UNIX timestamp
-  date -d "$(openssl x509 -in $DOKKU_ROOT/$1/tls/server.crt -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  declare desc="print SSL certificate expiry date as UNIX timestamp"
+  local app="$1"
+
+  date -d "$(openssl x509 -in $DOKKU_ROOT/$app/tls/server.crt -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
 
 letsencrypt_is_active() {
-  # checks if app is secured by let's encrypt
-  APP=$1
+  declare desc="checks if app is secured by let's encrypt"
+  local app=$1; verify_app_name "$app"
 
   # check if SSL is enabled on per-app level
-  if [[ "$(is_ssl_enabled $APP)" ]]; then
-    return 1
-  fi
+  is_ssl_enabled "$app" || return 1
 
-  # determine where the currently installed certificate
-  # points to. if this is not a symlink, will return an empty string
-  CERT_LOCATION=$(readlink "$DOKKU_ROOT/$APP/tls/server.crt");
+  # determine where the currently installed certificate points to.
+  # if this is not a symlink, will return an empty string
+  local cert_location=$(readlink "$DOKKU_ROOT/$app/tls/server.crt");
 
-  # check if certificate is symlink pointing to the let's encrypt certificate for "$APP"
-  if [[ "$CERT_LOCATION" != "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" ]]; then
-    return 2
-  fi
+  # check if certificate is symlink pointing to the let's encrypt certificate for "$app"
+  [[ "$cert_location" == "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" ]] || return 2
 
-  echo "$APP"
+  echo "$app"
 }
 
 letsencrypt_list_apps_and_expiry() {
-  # list all letsencrypt-secured apps together with their expiry date
+  declare desc="list all letsencrypt-secured apps together with their expiry date"
+
   # prints a tab-separated list of
   #  * app name
   #  * expiry dates as UNIX timestamp (seconds since epoch)
@@ -170,148 +105,73 @@ letsencrypt_list_apps_and_expiry() {
   for app in $(dokku_apps); do
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
     if [[ "$(letsencrypt_is_active $app)" ]]; then
-      expiry=$(letsencrypt_get_expirydate $app)
-      grace_period=$(letsencrypt_get $app DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT);
-      time_to_expiry=$(( $expiry - $(date +%s) ))
-      time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
+      local expiry=$(letsencrypt_get_expirydate $app)
+      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get $app DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
+      local time_to_expiry=$(( $expiry - $(date +%s) ))
+      local time_to_renewal=$(( $expiry - $grace_period - $(date +%s) ))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
     fi
   done
 }
 
 letsencrypt_configure_and_get_dir() {
+  declare desc="assemble simp_le command line arguments and create a config hash directory for them"
+
+  local app="$1"; verify_app_name "$app"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+
+  eval "$(config_export global)"
+  eval "$(config_export app $app)"
+
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  LETSENCRYPT_SERVER=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_SERVER)
-  if [ -z "$LETSENCRYPT_SERVER" ] ||  [ "$LETSENCRYPT_SERVER" == "default" ]; then
-    LETSENCRYPT_SERVER="https://acme-v01.api.letsencrypt.org/directory"
-  elif [ "$LETSENCRYPT_SERVER" == "staging" ]; then
-    LETSENCRYPT_SERVER="https://acme-staging.api.letsencrypt.org/directory"
+  local server=${DOKKU_LETSENCRYPT_SERVER:-default}
+  if [ -z "$server" ] ||  [ "$server" == "default" ]; then
+    server="https://acme-v01.api.letsencrypt.org/directory"
+  elif [ "$server" == "staging" ]; then
+    server="https://acme-staging.api.letsencrypt.org/directory"
   fi
 
   # construct domain arguments
-  DOMAINS=$(get_app_domains "$APP")
-  DOMAIN_ARGS=''
-  for DOMAIN in $DOMAINS; do
-    dokku_log_verbose " - Domain '$DOMAIN'" >&2
-    DOMAIN_ARGS="$DOMAIN_ARGS -d $DOMAIN"
+  local domains="$(get_app_domains "$app")"
+  local domain_args=''
+  for domain in "$domains"; do
+    dokku_log_verbose " - Domain '$domain'" >&2
+    domain_args="$domain_args -d $domain"
   done
 
-  LETSENCRYPT_CONFIG="--server $LETSENCRYPT_SERVER --email $LETSENCRYPT_EMAIL $DOMAIN_ARGS"
+  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args"
 
-  LETSENCRYPT_CONFIG_HASH=$(echo "$LETSENCRYPT_CONFIG" | sha1sum | awk '{print $1}')
-  LETSENCRYPT_CONFIG_DIR="$LETSENCRYPT_ROOT/certs/$LETSENCRYPT_CONFIG_HASH"
-  LETSENCRYPT_CONFIG_FILE="$LETSENCRYPT_CONFIG_DIR/config"
+  local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  local config_dir="$le_root/certs/$config_hash"; mkdir -p "$config_dir"
 
-  # create the config dir (if not available) and store config settings
-  mkdir -p "$LETSENCRYPT_CONFIG_DIR"
-  echo "$LETSENCRYPT_CONFIG" > "$LETSENCRYPT_CONFIG_FILE"
+  # store config settings
+  echo "$config" > "$config_dir/config"
 
-  echo "$LETSENCRYPT_CONFIG_DIR"
+  echo "$config_dir"
 }
 
 letsencrypt_check_email() {
+  declare desc="Check if an e-mail address is provided globally or for the app"
+
+  local app="$1"; verify_app_name "$app"
+
+  eval "$(config_export global)"
+  eval "$(config_export app $app)"
+
+  local email="$DOKKU_LETSENCRYPT_EMAIL"
+
   # check we have a valid e-mail address
-  LETSENCRYPT_EMAIL=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_EMAIL)
-  if [ -z "$LETSENCRYPT_EMAIL" ]; then
+  if [ -z "$email" ]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
+    dokku_log_warn "  dokku config:set --no-restart $app DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
     return 1
   fi
 }
 
-letsencrypt_acme () {
-  letsencrypt_create_root
 
-  dokku_log_info1 "Getting letsencrypt certificate for $APP..."
-
-  LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
-  LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
-
-  LETSENCRYPT_GRACE=$(letsencrypt_get $APP DOKKU_LETSENCRYPT_GRACEPERIOD $LETSENCRYPT_GRACEPERIOD_DEFAULT)
-
-  # run letsencrypt as a docker container using "certonly" mode
-  # port 80 of the standalone webserver will be forwarded by the proxy
-  set +e
-  docker run --rm \
-    -p $ACMEPORT:80 \
-    -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
-    dokkupaas/letsencrypt-simp_le:latest \
-    -f account_key.json \
-    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
-    --valid_min ${LETSENCRYPT_GRACE} \
-    $LETSENCRYPT_CONFIG
-
-  SIMPLE_RESULT=$?
-  set -e
-
-  # handle simp_le return codes
-  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
-  if [[ $SIMPLE_RESULT == 0 ]]; then
-    # got certificate
-    dokku_log_info1 "Certificate retrieved successfully."
-
-  elif [[ $SIMPLE_RESULT == 1 ]]; then
-    # no renewal necessary
-    dokku_log_info1 "No renewal necessary"
-
-  else
-    # error - don't try to link certificates
-    dokku_log_info1 "Certificate retrieval failed!"
-    return
-
-  fi
-
-  letsencrypt_link $LETSENCRYPT_CONFIG_DIR
-  nginx_build_config "$APP"
-}
-
-letsencrypt_acme_revoke () {
-  letsencrypt_create_root
-
-  dokku_log_info1 "Revoking letsencrypt certificate for $APP..."
-
-  LETSENCRYPT_CONFIG_DIR=$(letsencrypt_configure_and_get_dir)
-  LETSENCRYPT_CONFIG=$(cat $LETSENCRYPT_CONFIG_DIR/config)
-
-  # run letsencrypt as a docker container using "certonly" mode
-  # port 80 of the standalone webserver will be forwarded by the proxy
-  set +e
-  docker run --rm \
-    -p $ACMEPORT:80 \
-    -v "$LETSENCRYPT_CONFIG_DIR:/certs" \
-    dokkupaas/letsencrypt-simp_le:latest \
-    -f account_key.json \
-    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
-    --revoke \
-    $LETSENCRYPT_CONFIG
-
-  SIMPLE_RESULT=$?
-  set -e
-
-  # handle simp_le return codes
-  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
-  if [[ $SIMPLE_RESULT == 0 ]]; then
-    # certificate revoked
-    dokku_log_info1 "Certificate revoked successfully."
-
-  else
-    # error - don't try to link certificates
-    dokku_log_info1 "Certificate revocation failed (code $SIMPLE_RESULT)!"
-    return
-
-  fi
-
-  # move revoked certificates away
-  mv -f $LETSENCRYPT_CONFIG_DIR/fullchain.pem{,.revoked}
-  mv -f $LETSENCRYPT_CONFIG_DIR/chain.pem{,.revoked}
-  mv -f $LETSENCRYPT_CONFIG_DIR/cert.pem{,.revoked}
-  mv -f $LETSENCRYPT_CONFIG_DIR/key.pem{,.revoked}
-
-  # removing the certificate will automatically reconfigure nginx
-  dokku certs:remove $APP
-
-}

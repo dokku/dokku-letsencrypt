@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+
+letsencrypt_cleanup_cmd () {
+  declare desc="clean up unused certificate directories"
+  local app="$2"
+
+  [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
+
+  verify_app_name "$app"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+
+  local current_config="$(basename $(readlink $le_root/certs/current))"
+
+  if [ -z "$current_config" ] || [[ ! -d "$le_root/certs/$current_config" ]]; then
+    dokku_log_warn "Cannot resolve the 'current' certificate directory!"
+    return 1
+  fi
+
+  dokku_log_info2 "Cleaning up stale certificate directories for $app"
+  dokku_log_info1 "  - current config hash $current_config"
+
+  for certdir in $(ls $le_root/certs); do
+    if [[ "$certdir" == "current" ]] || [[ "$certdir" == "$current_config" ]]; then continue; fi
+    dokku_log_info1 "  - stale directory $certdir"
+    rm -rf "$le_root/certs/$certdir"
+  done
+
+}
+
+letsencrypt_cleanup_cmd "$@"

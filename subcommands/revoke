@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+
+letsencrypt_acme_revoke () {
+  declare desc="perform actual certificate revocation"
+  local app="$1"
+
+  letsencrypt_create_root "$app"
+
+  dokku_log_info1 "Revoking letsencrypt certificate for ${app}..."
+
+  local config_dir="$(letsencrypt_configure_and_get_dir $app)"
+  local config="$(cat $config_dir/config)"
+
+  # run letsencrypt as a docker container using "certonly" mode
+  # port 80 of the standalone webserver will be forwarded by the proxy
+  set +e
+  docker run --rm \
+    -v "$config_dir:/certs" \
+    dokkupaas/letsencrypt-simp_le:latest \
+    -f account_key.json \
+    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
+    --revoke \
+    $config
+
+  local simple_result=$?
+  set -e
+
+  # handle simp_le return codes
+  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
+  if [[ $simple_result == 0 ]]; then
+    # certificate revoked
+    dokku_log_info1 "Certificate revoked successfully."
+
+  else
+    # error - don't try to link certificates
+    dokku_log_info1 "Certificate revocation failed (code $simple_result)!"
+    return
+
+  fi
+
+  # move revoked certificates away
+  mv -f $config_dir/fullchain.pem{,.revoked}
+  mv -f $config_dir/chain.pem{,.revoked}
+  mv -f $config_dir/cert.pem{,.revoked}
+  mv -f $config_dir/key.pem{,.revoked}
+
+  # removing the certificate will automatically reconfigure nginx
+  dokku certs:remove $app
+
+}
+
+letsencrypt_revoke_cmd() {
+    declare desc="Revoke a certificate"
+    local app="$2"
+
+    [[ -z $app ]] && echo "Please specify an app to run the command on" && exit 1
+
+    dokku_log_info2 "Revoke Let's Encrypt certificate from ${app}..."
+
+    letsencrypt_check_email "$app"
+    letsencrypt_update
+    letsencrypt_acme_revoke "$app" || true
+
+    dokku_log_verbose "done"
+}
+
+letsencrypt_revoke_cmd "$@"
