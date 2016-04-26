@@ -79,7 +79,7 @@ letsencrypt_acme () {
   eval "$(config_export global)"
   eval "$(config_export app $app)"
 
-  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$(60 * 60 * 24 * 30)}"
+  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
