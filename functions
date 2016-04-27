@@ -139,7 +139,7 @@ letsencrypt_configure_and_get_dir() {
   # construct domain arguments
   local domains="$(get_app_domains "$app")"
   local domain_args=''
-  for domain in "$domains"; do
+  for domain in $domains; do
     dokku_log_verbose " - Domain '$domain'" >&2
     domain_args="$domain_args -d $domain"
   done
