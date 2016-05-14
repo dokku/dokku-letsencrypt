@@ -5,6 +5,7 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 
 
 letsencrypt_ls_cmd() {
+  #shellcheck disable=SC2034
   declare desc="list letsencrypt-secured apps and certificate expiries"
 
   dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
@@ -12,9 +13,9 @@ letsencrypt_ls_cmd() {
   letsencrypt_list_apps_and_expiry |
     sort -nk2 |
     while IFS=$'\t' read -r -a appExpiry; do
-      expire_date=$(date -d @${appExpiry[1]} +"%F %T")
-      expire_time=$(letsencrypt_format_timediff ${appExpiry[3]});
-      renew_time=$(letsencrypt_format_timediff ${appExpiry[4]});
+      expire_date=$(date -d "@${appExpiry[1]}" +"%F %T")
+      expire_time=$(letsencrypt_format_timediff "${appExpiry[3]}");
+      renew_time=$(letsencrypt_format_timediff "${appExpiry[4]}");
       dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}" "${renew_time}"
     done
 }

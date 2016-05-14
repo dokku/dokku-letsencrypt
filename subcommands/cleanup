@@ -4,6 +4,7 @@ source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 
 letsencrypt_cleanup_cmd () {
+  #shellcheck disable=SC2034
   declare desc="clean up unused certificate directories"
   local app="$2"
 
@@ -14,7 +15,7 @@ letsencrypt_cleanup_cmd () {
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
 
-  local current_config="$(basename $(readlink $le_root/certs/current))"
+  local current_config="$(basename "$(readlink "$le_root/certs/current")")"
 
   if [ -z "$current_config" ] || [[ ! -d "$le_root/certs/$current_config" ]]; then
     dokku_log_warn "Cannot resolve the 'current' certificate directory!"
@@ -24,10 +25,13 @@ letsencrypt_cleanup_cmd () {
   dokku_log_info2 "Cleaning up stale certificate directories for $app"
   dokku_log_info1 "  - current config hash $current_config"
 
-  for certdir in $(ls $le_root/certs); do
-    if [[ "$certdir" == "current" ]] || [[ "$certdir" == "$current_config" ]]; then continue; fi
-    dokku_log_info1 "  - stale directory $certdir"
-    rm -rf "$le_root/certs/$certdir"
+  for certdir in $le_root/certs/*; do
+    local certdir_basename=$(basename "$certdir");
+
+    if [[ "$certdir_basename" == "current" ]] || [[ "$certdir_basename" == "$current_config" ]]; then continue; fi
+    dokku_log_info1 "  - stale directory $certdir_basename"
+
+    rm -rf "$le_root/certs/$certdir_basename"
   done
 
 }

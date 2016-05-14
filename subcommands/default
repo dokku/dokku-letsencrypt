@@ -6,6 +6,7 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 
 
 letsencrypt_acmeproxy_on () {
+  #shellcheck disable=SC2034
   declare desc="enable ACME proxy for an app"
   local app="$1"; verify_app_name "$app"
   local acme_port="$2"
@@ -29,6 +30,7 @@ letsencrypt_acmeproxy_on () {
 
 
 letsencrypt_acmeproxy_off() {
+  #shellcheck disable=SC2034
   declare desc="disable ACME proxy for an app"
   local app="$1"; verify_app_name "$app"
 
@@ -43,6 +45,7 @@ letsencrypt_acmeproxy_off() {
 }
 
 letsencrypt_link () {
+  #shellcheck disable=SC2034
   declare desc="symlink let's encrypt certificates so they can be found by dokku"
 
   local app="$1"; verify_app_name "$app"
@@ -55,7 +58,7 @@ letsencrypt_link () {
   dokku_log_info1 "Symlinking let's encrypt certificates"
 
   # link the current config directory to 'current'
-  ln -nsf $config_dir $le_root/certs/current
+  ln -nsf "$config_dir" "$le_root/certs/current"
 
   # link the certificates from current to the app's TLS certificate storage
   mkdir -p "$tls_root"
@@ -65,6 +68,7 @@ letsencrypt_link () {
 
 
 letsencrypt_acme () {
+  #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
   local app="$1"
   local acme_port="$2"
@@ -73,11 +77,12 @@ letsencrypt_acme () {
 
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
-  local config_dir="$(letsencrypt_configure_and_get_dir $app)"
-  local config="$(cat $config_dir/config)"
+  # read simp_le arguments from appropriate config file into the config array
+  local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
+  read -r -a config < "$config_dir/config"
 
   eval "$(config_export global)"
-  eval "$(config_export app $app)"
+  eval "$(config_export app "$app")"
 
   local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
 
@@ -91,7 +96,7 @@ letsencrypt_acme () {
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --valid_min "${graceperiod}" \
-    $config
+    "${config[@]}"
 
   local simple_result=$?
   set -e
@@ -119,6 +124,7 @@ letsencrypt_acme () {
 
 
 letsencrypt_default_cmd() {
+  #shellcheck disable=SC2034
   declare desc="Validate an app's domains and retrieve a certificate"
   local app="$2"
 
