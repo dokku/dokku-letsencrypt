@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Setting "set -eo pipefail" breaks the crontab commands
+[[ $DOKKU_TRACE ]] && set -x
+
+CRON_CMD="$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
+CRON_JOB="@daily $CRON_CMD"
+
+letsencrypt_cron_job_add () {
+  crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" | crontab -
+  echo "Added cron job to dokku's crontab."
+}
+
+letsencrypt_cron_job_remove () {
+  crontab -l | grep -v "$CRON_CMD" | crontab -
+  echo "Removed cron job from dokku's crontab."
+}
+
+letsencrypt_cron_job_cmd () {
+  #shellcheck disable=SC2034
+  declare desc="add or remove a cron job that periodically calls auto-renew"
+
+  if [[ $2 == "--add" ]]; then
+    letsencrypt_cron_job_add
+  elif [[ $2 == "--remove" ]]; then
+    letsencrypt_cron_job_remove
+  else
+    echo "Use --add or --remove to add or remove the cron job."
+  fi
+}
+
+letsencrypt_cron_job_cmd "$@"
