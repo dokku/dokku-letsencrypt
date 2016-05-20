@@ -14,6 +14,7 @@ case "$1" in
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
+    letsencrypt:cron-job [--add --remove], Add or remove a cron job that periodically calls auto-renew.
     letsencrypt:help, Display letsencrypt help
     letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
@@ -21,7 +22,7 @@ case "$1" in
 help_content
     }
 
-    if [[ $1 = "letsencrypt:help" ]]; then 
+    if [[ $1 = "letsencrypt:help" ]]; then
       echo -e 'Usage: dokku letsencrypt[:COMMAND]'
       echo ''
       echo 'Automatically retrieve and install Lets Encrypt certificates.'

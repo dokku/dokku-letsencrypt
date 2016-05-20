@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+letsencrypt:auto-renew >> /var/log/dokku/letsencrypt.log
