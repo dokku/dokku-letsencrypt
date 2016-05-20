@@ -6,7 +6,7 @@ CRON_CMD="$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
 CRON_JOB="@daily $CRON_CMD"
 
 letsencrypt_cron_job_add () {
-  crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB" | crontab -
+  (crontab -l | grep -v "$CRON_CMD" ; echo "$CRON_JOB") | crontab -
   echo "Added cron job to dokku's crontab."
 }
 

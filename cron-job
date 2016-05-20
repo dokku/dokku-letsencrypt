@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 
-letsencrypt:auto-renew >> /var/log/dokku/letsencrypt.log
+PATH=$PATH:/usr/local/bin
+dokku letsencrypt:auto-renew &>> /var/log/dokku/letsencrypt.log
