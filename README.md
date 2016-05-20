@@ -2,7 +2,7 @@
 
 dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
 
-**Note:** `dokku-letsencrypt` will not auto-renew the certificates (but you can [run the included certificate renewal procedure in a cronjob](https://blog.semicolonsoftware.de/running-dokku-letsencrypt-auto-renewal-as-a-cronjob/)).
+**Note:** If you want to automatically renew the certificates, please use `dokku letsencrypt:cron-job --add` to add an auto-renewal cron-job to the crontab of the `dokku` user.
 
 **Note:** By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
 
@@ -35,6 +35,8 @@ $ dokku help
     letsencrypt <app>                       Enable or renew letsencrypt certificate for app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
+    letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
+    letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
     letsencrypt:ls                          List letsencrypt-secured apps with certificate expiry
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
 ```
