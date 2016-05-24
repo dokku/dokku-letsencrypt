@@ -9,7 +9,7 @@ letsencrypt_cron_job_add () {
   #shellcheck disable=SC2034
   declare desc="Add auto-renew cronjob to dokku user's crontab"
 
-  (crontab -l | grep -v "$CRON_CMD" || true; echo "$CRON_JOB") | crontab -
+  (crontab -l || true | grep -v "$CRON_CMD" || true; echo "$CRON_JOB") | crontab -
   dokku_log_info1 "Added cron job to dokku's crontab."
 }
 
@@ -17,7 +17,7 @@ letsencrypt_cron_job_remove () {
   #shellcheck disable=SC2034
   declare desc="Remove auto-renew cronjob from dokku user's crontab"
 
-  crontab -l | grep -v "$CRON_CMD" || true | crontab -
+  crontab -l || true | grep -v "$CRON_CMD" || true | crontab -
   dokku_log_info1 "Removed cron job from dokku's crontab."
 }
 
