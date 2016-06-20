@@ -87,12 +87,10 @@ letsencrypt_is_active() {
   # check if SSL is enabled on per-app level
   is_ssl_enabled "$app" || return 1
 
-  # determine where the currently installed certificate points to.
-  # if this is not a symlink, will return an empty string
-  local cert_location=$(readlink "$DOKKU_ROOT/$app/tls/server.crt");
-
-  # check if certificate is symlink pointing to the let's encrypt certificate for "$app"
-  [[ "$cert_location" == "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" ]] || return 2
+  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes 
+  local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found");
+  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found" );
+  [[ "$cert_sha1" == "$le_sha1" ]] || return 2
 
   echo "$app"
 }
