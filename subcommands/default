@@ -52,7 +52,6 @@ letsencrypt_link () {
   local config_dir="$2"
 
   local app_root="$DOKKU_ROOT/$app"
-  local tls_root="$app_root/tls"
   local le_root="$app_root/letsencrypt"
 
   dokku_log_info1 "Symlinking let's encrypt certificates"
@@ -61,9 +60,7 @@ letsencrypt_link () {
   ln -nsf "$config_dir" "$le_root/certs/current"
 
   # link the certificates from current to the app's TLS certificate storage
-  mkdir -p "$tls_root"
-  ln -nsf "$le_root/certs/current/key.pem" "$tls_root/server.key"
-  ln -nsf "$le_root/certs/current/fullchain.pem" "$tls_root/server.crt"
+  dokku certs:add "$app" "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
 }
 
 
