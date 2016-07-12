@@ -97,6 +97,28 @@ You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
 
+## Dockerfile Deploys
+When securing Dockerfile deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](http://dokku.viewdocs.io/dokku/advanced-usage/proxy-management/#proxy-port-mapping).
+
+For Dockerfile deploys, by default, dokku will determine which ports a container exposes and forward all those exposed ports in the Docker container to the same port numbers on the host. This means that **both the forwards for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
+
+A full workflow for creating a new Dockerfile deployment with dokku-letsencrypt would be:
+
+1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote. This guide assumes that the Docker container will be listening for connections on port 5555 so replace container port numbers accordingly if necessary.
+2. On the dokku host, use `dokku proxy:ports-add myapp http:80:5555` to proxy HTTP port 80 to port 5555 on the Docker image
+3. On the dokku host, use `dokku letsencrypt myapp` to retrieve HTTPS certificates.
+4. On the dokku host, use `dokku proxy:ports-add myapp https:443:5555` to proxy HTTPS port 443 to port 5555 on the Docker image
+5. (optional) On the dokku host, use `dokku proxy:ports-remove myapp http:5555:5555` to remove a potential leftover port forward that was automatically configured on first deploy.
+
+After these steps, the output of `dokku proxy:ports myapp` should look like this:
+```
+-----> Port mappings for myapp
+-----> scheme             host port                 container port                                     
+http                      80                        5000                                               
+https                     443                       5000  
+```
+
+**Note:** Step 2 and step 4 cannot be joined together since a configured HTTPS proxy will include a `ssl_certificate` line in the app's nginx config that will cause nginx config validation to fail because no valid HTTPS certificate is available until step 3 is completed.
 
 ## Dealing with rate limit
 
