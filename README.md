@@ -114,8 +114,8 @@ After these steps, the output of `dokku proxy:ports myapp` should look like this
 ```
 -----> Port mappings for myapp
 -----> scheme             host port                 container port                                     
-http                      80                        5000                                               
-https                     443                       5000  
+http                      80                        5555                                               
+https                     443                       5555  
 ```
 
 **Note:** Step 2 and step 4 cannot be joined together since a configured HTTPS proxy will include a `ssl_certificate` line in the app's nginx config that will cause nginx config validation to fail because no valid HTTPS certificate is available until step 3 is completed.
