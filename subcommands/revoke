@@ -51,13 +51,26 @@ letsencrypt_acme_revoke () {
   mv -f "$config_dir/key.pem" "$config_dir/key.pem.revoked"
 
   # removing the certificate will automatically reconfigure nginx
-  dokku certs:remove "$app"
+  if [[ -z $DOKKU_APP_NAME ]]; then
+    dokku certs:remove "$app"
+  else
+    dokku certs:remove
+  fi
 
 }
 
 letsencrypt_revoke_cmd() {
   #shellcheck disable=SC2034
   declare desc="Revoke a certificate"
+  local cmd="letsencrypt:revoke"
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  local argv=("$@")
+  [[ ${argv[0]} == "$cmd" ]] && shift 1
+  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
+  set -- $cmd $@
+  ##
+
   local app="$2"
 
   [[ -z $app ]] && echo "Please specify an app to run the command on" && exit 1

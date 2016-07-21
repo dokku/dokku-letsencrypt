@@ -7,6 +7,16 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 letsencrypt_auto_renew_cmd() {
   #shellcheck disable=SC2034
   declare desc="auto-renew certificates if necessary"
+  local cmd="letsencrypt:auto-renew"
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  local argv=("$@")
+  [[ ${argv[0]} == "$cmd" ]] && shift 1
+  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
+  set -- $cmd $@
+  ##
+
+
   local app="$2"
 
   if [ -z "$app" ]; then

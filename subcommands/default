@@ -60,7 +60,11 @@ letsencrypt_link () {
   ln -nsf "$config_dir" "$le_root/certs/current"
 
   # install the let's encrypt certificate for the app
-  dokku certs:add "$app" "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
+  if [[ -z $DOKKU_APP_NAME ]]; then
+    dokku certs:add "$app" "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
+  else
+    dokku certs:add "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
+  fi
 }
 
 
@@ -123,6 +127,15 @@ letsencrypt_acme () {
 letsencrypt_default_cmd() {
   #shellcheck disable=SC2034
   declare desc="Validate an app's domains and retrieve a certificate"
+  local cmd="letsencrypt"
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  local argv=("$@")
+  [[ ${argv[0]} == "$cmd" ]] && shift 1
+  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
+  set -- $cmd $@
+  ##
+
   local app="$2"
 
   [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
