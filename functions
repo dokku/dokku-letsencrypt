@@ -141,6 +141,13 @@ letsencrypt_configure_and_get_dir() {
     server="https://acme-staging.api.letsencrypt.org/directory"
   fi
 
+  # get the selected terms of service (TOS) hash
+  local tos_hash=${DOKKU_LETSENCRYPT_TOS_HASH}
+  local tos_hash_arg=''
+  if [ ! -z "$tos_hash" ]; then
+    tos_hash_arg="--tos_sha256 $tos_hash "
+  fi
+
   # construct domain arguments
   local domains="$(get_app_domains "$app")"
   local domain_args=''
@@ -149,7 +156,7 @@ letsencrypt_configure_and_get_dir() {
     domain_args="$domain_args -d $domain"
   done
 
-  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args"
+  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL ${tos_hash_arg}${domain_args}"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"; mkdir -p "$config_dir"
