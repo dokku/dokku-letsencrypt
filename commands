@@ -5,11 +5,9 @@ set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 case "$1" in
 
   help | letsencrypt:help)
-
     help_content_func() {
       #shellcheck disable=SC2034
       declare desc="return letsencrypt plugin help content"
-
       cat<<help_content
     letsencrypt <app>, Enable or renew letsencrypt for app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
@@ -29,14 +27,17 @@ help_content
       echo ''
       echo 'Additional commands:'
       help_content_func | sort | column -c2 -t -s,
-    else
+    elif [[ $(ps -o command= $PPID) == *"--all"* ]]; then
       help_content_func
+    else
+      cat<<help_desc
+    letsencrypt, Plugin for managing letsencrypt app integration
+help_desc
     fi
-
-  ;;
+    ;;
 
   *)
     exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
-  ;;
+    ;;
 
 esac
