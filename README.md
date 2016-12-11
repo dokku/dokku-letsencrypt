@@ -88,7 +88,7 @@ You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=
 
 ## Redirecting from HTTP to HTTPS
 
-Just like with other SSL certificates, Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.
+Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.
 
 You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configuration/nginx/) if you want different behaviour.
 
