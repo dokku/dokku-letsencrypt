@@ -86,6 +86,12 @@ Variable                        | Default     | Description
 
 You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 
+## Redirecting from http to https
+
+Just like with other SSL certificates, Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.
+
+You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configuration/nginx/) if you want different behaviour.
+
 ## Design
 
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
