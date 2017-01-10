@@ -31,7 +31,7 @@ $ sudo dokku plugin:update letsencrypt dokku-0.4
 ## Commands
 
 ```
-$ dokku help
+$ dokku letsencrypt:help
     letsencrypt <app>                       Enable or renew letsencrypt certificate for app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
