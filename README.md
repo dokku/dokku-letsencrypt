@@ -1,6 +1,7 @@
 # dokku-letsencrypt (Beta)
 
 dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
+
 **Note:** Your app must already be deployed and accessible in the browser in order to add letsencrypt to your app. Your app just being created is not enough. If you need to, add a temporary certificate to your app prior to adding letsencrypt by running `dokku certs:generate <app> DOMAIN` to make your app accessible.
 
 **Note:** If you want to automatically renew the certificates, please use `dokku letsencrypt:cron-job --add` to add an auto-renewal cron-job to the crontab of the `dokku` user. This is supported starting from the plugin version 0.8.2 which only works with Dokku 0.5 or later.
