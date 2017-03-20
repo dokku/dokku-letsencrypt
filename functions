@@ -75,22 +75,23 @@ letsencrypt_get_expirydate() {
   #shellcheck disable=SC2034
   declare desc="print SSL certificate expiry date as UNIX timestamp"
   local app="$1"
+  local client="$2"
 
-  date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/letsencrypt/$client/certs/current/cert.pem" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
 
 letsencrypt_is_active() {
   #shellcheck disable=SC2034
   declare desc="checks if app is secured by let's encrypt"
   local app=$1; verify_app_name "$app"
+  local cert_name="$2"
 
-  # check if SSL is enabled on per-app level
-  is_ssl_enabled "$app" || return 1
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local cert_root="$le_root/$cert_name"
 
-  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
-  local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found");
-  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found" );
-  [[ "$cert_sha1" == "$le_sha1" ]] || return 2
+  # Check if current symlink exists and not broken
+  [ -L "$cert_root/certs/current" ] && [ -e "$cert_root/certs/current" ] || return 2
 
   echo "$app"
 }
@@ -108,13 +109,17 @@ letsencrypt_list_apps_and_expiry() {
 
   for app in $(dokku_apps); do
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
-    if [[ "$(letsencrypt_is_active "$app")" ]]; then
-      local expiry=$(letsencrypt_get_expirydate "$app")
-      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
-      local time_to_expiry=$(( expiry - $(date +%s) ))
-      local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
-      echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
-    fi
+    for client in $DOKKU_ROOT/$app/letsencrypt/*; do
+      [ -d "${client}" ] || continue
+      local client_name="$(basename "${client}")"
+      if [[ "$(letsencrypt_is_active "$app" "$client_name")" ]]; then
+        local expiry=$(letsencrypt_get_expirydate "$app" "$client_name")
+        local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
+        local time_to_expiry=$(( expiry - $(date +%s) ))
+        local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
+        echo -e "$app\t$client_name\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
+      fi
+    done
   done
 }
 
