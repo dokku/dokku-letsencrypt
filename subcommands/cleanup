@@ -16,17 +16,21 @@ letsencrypt_cleanup_cmd () {
   ##
 
   local app="$2"
+  local client="$3"
 
   [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
+  [[ -z "$client" ]] && echo "Please specify a client to run the command on" && exit 1
 
   verify_app_name "$app"
+  letsencrypt_verify_client_name "$client"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
 
-  local current_config="$(basename "$(readlink "$le_root/certs/current")")"
+  local current_config="$(basename "$(readlink "$client_root/certs/current")")"
 
-  if [ -z "$current_config" ] || [[ ! -d "$le_root/certs/$current_config" ]]; then
+  if [ -z "$current_config" ] || [[ ! -d "$client_root/certs/$current_config" ]]; then
     dokku_log_warn "Cannot resolve the 'current' certificate directory!"
     return 1
   fi
@@ -34,13 +38,13 @@ letsencrypt_cleanup_cmd () {
   dokku_log_info2 "Cleaning up stale certificate directories for $app"
   dokku_log_info1 "  - current config hash $current_config"
 
-  for certdir in $le_root/certs/*; do
+  for certdir in $client_root/certs/*; do
     local certdir_basename=$(basename "$certdir");
 
     if [[ "$certdir_basename" == "current" ]] || [[ "$certdir_basename" == "$current_config" ]]; then continue; fi
     dokku_log_info1 "  - stale directory $certdir_basename"
 
-    rm -rf "$le_root/certs/$certdir_basename"
+    rm -rf "$client_root/certs/$certdir_basename"
   done
 
 }
