@@ -49,7 +49,7 @@ letsencrypt_acme () {
   #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
   local app="$1"
-  local client="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
   local acme_port="$3"
 
   letsencrypt_create_root "$app"

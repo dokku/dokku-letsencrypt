@@ -75,7 +75,7 @@ letsencrypt_get_expirydate() {
   #shellcheck disable=SC2034
   declare desc="print SSL certificate expiry date as UNIX timestamp"
   local app="$1"
-  local client="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
   date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/letsencrypt/$client/certs/current/cert.pem" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
@@ -84,14 +84,14 @@ letsencrypt_is_active() {
   #shellcheck disable=SC2034
   declare desc="checks if app is secured by let's encrypt"
   local app=$1; verify_app_name "$app"
-  local cert_name="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
-  local cert_root="$le_root/$cert_name"
+  local client_root="$le_root/$client"
 
   # Check if current symlink exists and not broken
-  [ -L "$cert_root/certs/current" ] && [ -e "$cert_root/certs/current" ] || return 2
+  [ -L "$client_root/certs/current" ] && [ -e "$client_root/certs/current" ] || return 2
 
   echo "$app"
 }
@@ -128,7 +128,7 @@ letsencrypt_configure_and_get_dir() {
   declare desc="assemble simp_le command line arguments and create a config hash directory for them"
 
   local app="$1"; verify_app_name "$app"
-  local client="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -192,7 +192,7 @@ letsencrypt_link () {
   declare desc="symlink let's encrypt certificates so they can be found by dokku"
 
   local app="$1"; verify_app_name "$app"
-  local client="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
   local config_dir="$3"
 
   local app_root="$DOKKU_ROOT/$app"
@@ -205,10 +205,20 @@ letsencrypt_link () {
   ln -nsf "$config_dir" "$client_root/certs/current"
 }
 
+letsencrypt_verify_client_name() {
+  declare desc="verify app name format and app existence"
+  local app="$1"; verify_app_name "$app"
+  local client="$2";
+  [[ ! -n "$client" ]] && dokku_log_fail "(letsencrypt_verify_client_name) client must not be null"
+  [[ ! -d "$DOKKU_ROOT/$app/letsencrypt/$client" ]] && dokku_log_fail "App/Client $app/$client does not exist"
+
+  return 0
+}
+
 letsencrypt_write_nginx_conf() {
   declare desc="write an nginx vhost config"
   local app="$1"
-  local client="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
