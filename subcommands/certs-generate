@@ -9,13 +9,13 @@ letsencrypt_generate_certs_cmd() {
   declare desc="generates a self-signed SSL certificate/key combo"
   local cmd="certs:generate"
   [[ -z $2 ]] && dokku_log_fail "Please specify an app to run the command on"
-  [[ -z $3 ]] && dokku_log_fail "Please specify an bundled name for the certificate (e.g. client name)"
+  [[ -z $3 ]] && dokku_log_fail "Please specify a client name for the certificate"
   [[ -z $4 ]] && dokku_log_fail "Please specify a domain"
 
   # create check for DOMAINS existance
 
   local app="$2"; verify_app_name "$app"
-  local client="$3"
+  local client="$3"; letsencrypt_verify_client_name "$client"
   local domain="$4"
 
   local app_root="$DOKKU_ROOT/$app"
