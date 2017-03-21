@@ -18,8 +18,9 @@ letsencrypt_auto_renew_cmd() {
 
 
   local app="$2"
+  local client="$3"
 
-  if [ -z "$app" ]; then
+  if [ -z "$app" ] ||  [ -z "$client" ]; then
     dokku_log_info2 "Auto-renewing all apps..."
 
     # For all apps, sorted by ascending time left until renewal.
@@ -29,12 +30,12 @@ letsencrypt_auto_renew_cmd() {
       sort -nk5 |
       while IFS=$'\t' read -r -a appExpiry; do
 
-        if [[ ${appExpiry[4]} -lt 0 ]]; then
-          dokku_log_info1 "${appExpiry[0]} needs renewal"
-          dokku letsencrypt "${appExpiry[0]}"
+        if [[ ${appExpiry[5]} -lt 0 ]]; then
+          dokku_log_info1 "${appExpiry[0]}/${appExpiry[1]} needs renewal"
+          dokku letsencrypt "${appExpiry[0]}" "${appExpiry[1]}"
         else
-          days_left=$(letsencrypt_format_timediff "${appExpiry[4]}")
-          dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
+          days_left=$(letsencrypt_format_timediff "${appExpiry[5]}")
+          dokku_log_verbose "${appExpiry[0]}/${appExpiry[1]} still has $days_left days left before renewal"
         fi
 
       done
@@ -43,16 +44,16 @@ letsencrypt_auto_renew_cmd() {
 
   else
 
-    local expiry=$(letsencrypt_get_expirydate "$app")
+    local expiry=$(letsencrypt_get_expirydate "$app" "$client")
     local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
     local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
 
     if [[ $time_to_renewal -lt 0 ]]; then
-      dokku_log_info2 "Auto-renew ${app}..."
-      dokku letsencrypt "$app"
+      dokku_log_info2 "Auto-renew ${app}/${client}..."
+      dokku letsencrypt "$app" "$client"
     else
       days_left=$(letsencrypt_format_timediff $time_to_renewal)
-      dokku_log_verbose "$app still has $days_left days left before renewal"
+      dokku_log_verbose "$app/$client still has $days_left days left before renewal"
     fi
 
   fi

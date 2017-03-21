@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+
+
+letsencrypt_generate_certs_cmd() {
+  declare desc="generates a self-signed SSL certificate/key combo"
+  local cmd="certs:generate"
+  [[ -z $2 ]] && dokku_log_fail "Please specify an app to run the command on"
+  [[ -z $3 ]] && dokku_log_fail "Please specify a client name for the certificate"
+  [[ -z $4 ]] && dokku_log_fail "Please specify a domain"
+
+  # create check for DOMAINS existance
+
+  local app="$2"; verify_app_name "$app"
+  local client="$3"; letsencrypt_verify_client_name "$client"
+  local domain="$4"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
+
+  letsencrypt_create_root "$app"
+
+  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$client")"
+
+  echo "$domain" > "$client_root/DOMAINS"
+
+  if [[ ! -f "$config_dir/key.pem" ]] && [[ ! -f "$config_dir/fullchain.pem" ]]; then
+    local CERTS_GENERATE_TMP_WORK_DIR=$(mktemp -d "/tmp/dokku_certs.XXXXXXXXX")
+    pushd "$CERTS_GENERATE_TMP_WORK_DIR" > /dev/null
+    trap 'popd &> /dev/null || true; rm -rf "$CERTS_GENERATE_TMP_WORK_DIR" > /dev/null' INT TERM EXIT
+
+    openssl genrsa -des3 -passout pass:x -out server.pass.key 2048
+    openssl rsa -passin pass:x -in server.pass.key -out key.pem
+    openssl req -new -key key.pem -out server.csr
+    openssl x509 -req -days 365 -in server.csr -signkey key.pem -out fullchain.pem
+
+    dokku_log_info1 "Installing certificate and key..."
+    mv -f "$CERTS_GENERATE_TMP_WORK_DIR/fullchain.pem" "$CERTS_GENERATE_TMP_WORK_DIR/server.csr" "$CERTS_GENERATE_TMP_WORK_DIR/key.pem"  "$config_dir"
+    chmod 750 "$config_dir"
+    chmod 640 "$config_dir/fullchain.pem" "$config_dir/server.csr" "$config_dir/key.pem"
+
+    letsencrypt_link "$app" "$client" "$config_dir"
+    letsencrypt_write_nginx_conf "$app" "$client"
+
+    restart_nginx
+
+    cat "$config_dir/server.csr"
+  else
+    dokku_log_info1 "$app has an SSL endpoint already defined"
+  fi
+}
+
+letsencrypt_generate_certs_cmd "$@"

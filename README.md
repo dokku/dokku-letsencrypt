@@ -2,7 +2,7 @@
 
 dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
 
-**Note:** Your app must already be deployed and accessible in the browser in order to add letsencrypt to your app. Your app just being created is not enough. If you need to, add a temporary certificate to your app prior to adding letsencrypt by running `dokku certs:generate <app> DOMAIN` to make your app accessible.
+**Note:** Your app must already be deployed and accessible in the browser in order to add letsencrypt to your app. Your app just being created is not enough. If you need to, add a temporary certificate to your app prior to adding letsencrypt by running `dokku letsencrypt:certs-generate <app> <client> DOMAIN` to make your app accessible.
 
 **Note:** If you want to automatically renew the certificates, please use `dokku letsencrypt:cron-job --add` to add an auto-renewal cron-job to the crontab of the `dokku` user. This is supported starting from the plugin version 0.8.2 which only works with Dokku 0.5 or later.
 
@@ -34,13 +34,15 @@ $ sudo dokku plugin:update letsencrypt dokku-0.4
 
 ```
 $ dokku letsencrypt:help
-    letsencrypt <app>                       Enable or renew letsencrypt certificate for app
-    letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
-    letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
-    letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
-    letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
-    letsencrypt:ls                          List letsencrypt-secured apps with certificate expiry
-    letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
+    letsencrypt <app>                                  Enable or renew letsencrypt certificate for app
+    letsencrypt:auto-renew                             Auto-renew all apps secured by letsencrypt if renewal is necessary
+    letsencrypt:auto-renew <app>                       Auto-renew app if renewal is necessary
+    letsencrypt:certs-generate <app> <client> <domain> Generate self signed certificate for client within app
+    letsencrypt:cleanup <app>                          Cleanup stale certificates and configurations
+    letsencrypt:cron-job <--add|--remove>              Add or remove an auto-renewal cronjob
+    letsencrypt:domains <app> <client> <domains>       Set domains for client within app
+    letsencrypt:ls                                     List letsencrypt-secured apps with certificate expiry
+    letsencrypt:revoke <app>                           Revoke letsencrypt certificate for app
 ```
 
 ## Usage
@@ -51,8 +53,9 @@ Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this co
 $ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 -----> Setting config vars
        DOKKU_LETSENCRYPT_EMAIL: your@email.tld
-$ dokku letsencrypt myapp
-=====> Let's Encrypt myapp...
+$ dokku letsencrypt:domains myapp myclient example.com
+$ dokku letsencrypt myapp myclient
+=====> Let's Encrypt myapp/myclient...
 -----> Updating letsencrypt docker image...
 latest: Pulling from dokkupaas/letsencrypt-simp_le
 

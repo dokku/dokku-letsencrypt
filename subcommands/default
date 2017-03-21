@@ -44,42 +44,20 @@ letsencrypt_acmeproxy_off() {
   restart_nginx
 }
 
-letsencrypt_link () {
-  #shellcheck disable=SC2034
-  declare desc="symlink let's encrypt certificates so they can be found by dokku"
-
-  local app="$1"; verify_app_name "$app"
-  local config_dir="$2"
-
-  local app_root="$DOKKU_ROOT/$app"
-  local le_root="$app_root/letsencrypt"
-
-  dokku_log_info1 "Installing let's encrypt certificates"
-
-  # link the current config directory to 'current'
-  ln -nsf "$config_dir" "$le_root/certs/current"
-
-  # install the let's encrypt certificate for the app
-  if [[ -z $DOKKU_APP_NAME ]]; then
-    dokku certs:add "$app" "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
-  else
-    dokku certs:add "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
-  fi
-}
-
 
 letsencrypt_acme () {
   #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
   local app="$1"
-  local acme_port="$2"
+  local client="$2"; letsencrypt_verify_client_name "$client"
+  local acme_port="$3"
 
   letsencrypt_create_root "$app"
 
-  dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
+  dokku_log_info1 "Getting letsencrypt certificate for ${app}/${client}..."
 
   # read simp_le arguments from appropriate config file into the config array
-  local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
+  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$client")"
   read -r -a config < "$config_dir/config"
 
   eval "$(config_export global)"
@@ -119,8 +97,9 @@ letsencrypt_acme () {
 
   fi
 
-  letsencrypt_link "$app" "$config_dir"
-  nginx_build_config "$app"
+  letsencrypt_link "$app" "$client" "$config_dir"
+
+  letsencrypt_write_nginx_conf "$app" "$client"
 }
 
 
@@ -137,6 +116,7 @@ letsencrypt_default_cmd() {
   ##
 
   local app="$2"
+  local client="$3"
 
   [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
 
@@ -150,7 +130,7 @@ letsencrypt_default_cmd() {
   letsencrypt_update
 
   letsencrypt_acmeproxy_on "$app" "$acme_port"
-  letsencrypt_acme "$app" "$acme_port" || true    # remove ACME proxy even if this fails
+  letsencrypt_acme "$app" "$client" "$acme_port" || true    # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$app"
 
   dokku_log_verbose "done"

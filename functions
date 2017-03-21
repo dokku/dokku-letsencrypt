@@ -75,22 +75,23 @@ letsencrypt_get_expirydate() {
   #shellcheck disable=SC2034
   declare desc="print SSL certificate expiry date as UNIX timestamp"
   local app="$1"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
-  date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/letsencrypt/$client/certs/current/cert.pem" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
 
 letsencrypt_is_active() {
   #shellcheck disable=SC2034
   declare desc="checks if app is secured by let's encrypt"
   local app=$1; verify_app_name "$app"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
-  # check if SSL is enabled on per-app level
-  is_ssl_enabled "$app" || return 1
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
 
-  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes 
-  local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found");
-  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found" );
-  [[ "$cert_sha1" == "$le_sha1" ]] || return 2
+  # Check if current symlink exists and not broken
+  [ -L "$client_root/certs/current" ] && [ -e "$client_root/certs/current" ] || return 2
 
   echo "$app"
 }
@@ -108,13 +109,17 @@ letsencrypt_list_apps_and_expiry() {
 
   for app in $(dokku_apps); do
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
-    if [[ "$(letsencrypt_is_active "$app")" ]]; then
-      local expiry=$(letsencrypt_get_expirydate "$app")
-      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
-      local time_to_expiry=$(( expiry - $(date +%s) ))
-      local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
-      echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
-    fi
+    for client in $DOKKU_ROOT/$app/letsencrypt/*; do
+      [ -d "${client}" ] || continue
+      local client_name="$(basename "${client}")"
+      if [[ "$(letsencrypt_is_active "$app" "$client_name")" ]]; then
+        local expiry=$(letsencrypt_get_expirydate "$app" "$client_name")
+        local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
+        local time_to_expiry=$(( expiry - $(date +%s) ))
+        local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
+        echo -e "$app\t$client_name\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
+      fi
+    done
   done
 }
 
@@ -123,9 +128,11 @@ letsencrypt_configure_and_get_dir() {
   declare desc="assemble simp_le command line arguments and create a config hash directory for them"
 
   local app="$1"; verify_app_name "$app"
+  local client="$2"; letsencrypt_verify_client_name "$client"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
 
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
@@ -142,7 +149,7 @@ letsencrypt_configure_and_get_dir() {
   fi
 
   # construct domain arguments
-  local domains="$(get_app_domains "$app")"
+  local domains="$(cat $client_root/DOMAINS)"
   local domain_args=''
   for domain in $domains; do
     dokku_log_verbose " - Domain '$domain'" >&2
@@ -152,7 +159,7 @@ letsencrypt_configure_and_get_dir() {
   local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL --tos_sha256 6373439b9f29d67a5cd4d18cbc7f264809342dbf21cb2ba2fc7588df987a6221 $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
-  local config_dir="$le_root/certs/$config_hash"; mkdir -p "$config_dir"
+  local config_dir="$client_root/certs/$config_hash"; mkdir -p "$config_dir"
 
   # store config settings
   echo "$config" > "$config_dir/config"
@@ -180,4 +187,50 @@ letsencrypt_check_email() {
   fi
 }
 
+letsencrypt_link () {
+  #shellcheck disable=SC2034
+  declare desc="symlink let's encrypt certificates so they can be found by dokku"
 
+  local app="$1"; verify_app_name "$app"
+  local client="$2"; letsencrypt_verify_client_name "$client"
+  local config_dir="$3"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
+
+  dokku_log_info1 "Installing let's encrypt certificates"
+
+  # link the current config directory to 'current'
+  ln -nsf "$config_dir" "$client_root/certs/current"
+}
+
+letsencrypt_verify_client_name() {
+  declare desc="verify app name format and app existence"
+  local app="$1"; verify_app_name "$app"
+  local client="$2";
+  [[ ! -n "$client" ]] && dokku_log_fail "(letsencrypt_verify_client_name) client must not be null"
+  [[ ! -d "$DOKKU_ROOT/$app/letsencrypt/$client" ]] && dokku_log_fail "App/Client $app/$client does not exist"
+
+  return 0
+}
+
+letsencrypt_write_nginx_conf() {
+  declare desc="write an nginx vhost config"
+  local app="$1"
+  local client="$2"; letsencrypt_verify_client_name "$client"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local client_root="$le_root/$client"
+
+  local domains="$(cat $client_root/DOMAINS)"
+
+  # Create new nginx vhost
+  sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/nginx.conf.sigil" \
+    DOMAINS="$domains" \
+    CONFIG_DIR="$client_root/certs/current" \
+    CLIENT="$client" \
+    APP="$app" \
+    > "$client_root/nginx.conf"
+}
