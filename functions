@@ -149,7 +149,8 @@ letsencrypt_configure_and_get_dir() {
     domain_args="$domain_args -d $domain"
   done
 
-  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL --tos_sha256 6373439b9f29d67a5cd4d18cbc7f264809342dbf21cb2ba2fc7588df987a6221 $domain_args"
+  local tos_sha=$(config_get --global DOKKU_LETSENCRYPT_TOS_SHA || echo cc88d8d9517f490191401e7b54e9ffd12a2b9082ec7a1d4cec6101f9f1647e7b);
+  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL --tos_sha256 $tos_sha $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"; mkdir -p "$config_dir"
