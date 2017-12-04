@@ -77,6 +77,11 @@ Status: Image is up to date for dokkupaas/letsencrypt-simp_le:latest
 
 Once the certificate is installed, you can use the `certs:*` built-in commands to edit and query your certificate.
 
+You could also use the following command to set an email address for global. So you don't need to type the email address for different application.
+```
+dokku config:set --global DOKKU_LETSENCRYPT_EMAIL=your@email.tld
+```
+
 ## Configuration
 `dokku-letsencrypt` uses the [Dokku environment variable manager](http://dokku.viewdocs.io/dokku/configuration-management/) for all configuration. The important environment variables are:
 
