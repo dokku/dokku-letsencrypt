@@ -73,6 +73,7 @@ letsencrypt_acme () {
   declare desc="perform actual ACME validation procedure"
   local app="$1"
   local acme_port="$2"
+  local verbose="$3"
 
   letsencrypt_create_root "$app"
 
@@ -97,6 +98,7 @@ letsencrypt_acme () {
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --valid_min "${graceperiod}" \
+    ${verbose} \
     "${config[@]}"
 
   local simple_result=$?
@@ -137,6 +139,15 @@ letsencrypt_default_cmd() {
   ##
 
   local app="$2"
+  
+  local verbose=""
+  while getopts "v" OPTION
+  do
+    case $OPTION in
+      v) verbose="--verbose "
+         ;;
+    esac
+  done
 
   [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
 
@@ -150,7 +161,7 @@ letsencrypt_default_cmd() {
   letsencrypt_update
 
   letsencrypt_acmeproxy_on "$app" "$acme_port"
-  letsencrypt_acme "$app" "$acme_port" || true    # remove ACME proxy even if this fails
+  letsencrypt_acme "$app" "$acme_port" "$verbose" || true    # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$app"
 
   dokku_log_verbose "done"
