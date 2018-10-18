@@ -24,16 +24,16 @@ $ sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git --com
 
 ```sh
 # dokku 0.5+
-$ sudo dokku plugin:update letsencrypt
+sudo dokku plugin:update letsencrypt
 
 # dokku 0.4
-$ sudo dokku plugin:update letsencrypt dokku-0.4
+sudo dokku plugin:update letsencrypt dokku-0.4
 ```
 
 ## Commands
 
 ```
-$ dokku letsencrypt:help
+dokku letsencrypt:help
     letsencrypt <app>                       Enable or renew letsencrypt certificate for app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
@@ -48,10 +48,10 @@ $ dokku letsencrypt:help
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
+dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 -----> Setting config vars
        DOKKU_LETSENCRYPT_EMAIL: your@email.tld
-$ dokku letsencrypt myapp
+dokku letsencrypt myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
 latest: Pulling from dokkupaas/letsencrypt-simp_le
