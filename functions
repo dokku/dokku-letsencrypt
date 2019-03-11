@@ -76,7 +76,7 @@ letsencrypt_get_expirydate() {
   declare desc="print SSL certificate expiry date as UNIX timestamp"
   local app="$1"
 
-  date -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
 }
 
 letsencrypt_is_active() {
