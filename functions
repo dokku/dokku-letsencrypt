@@ -136,9 +136,9 @@ letsencrypt_configure_and_get_dir() {
   # get the selected ACME server
   local server=${DOKKU_LETSENCRYPT_SERVER:-default}
   if [ -z "$server" ] ||  [ "$server" == "default" ]; then
-    server="https://acme-v01.api.letsencrypt.org/directory"
+    server="https://acme-v02.api.letsencrypt.org/directory"
   elif [ "$server" == "staging" ]; then
-    server="https://acme-staging.api.letsencrypt.org/directory"
+    server="https://acme-staging-v02.api.letsencrypt.org/directory"
   fi
 
   # construct domain arguments
