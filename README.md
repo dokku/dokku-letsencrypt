@@ -54,10 +54,10 @@ $ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 $ dokku letsencrypt myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
-latest: Pulling from dokkupaas/letsencrypt-simp_le
+latest: Pulling from dokku/letsencrypt
 
 Digest: sha256:20f2a619795c1a3252db6508f77d6d3648ad5b336e67caaf801126367dbdfa22
-Status: Image is up to date for dokkupaas/letsencrypt-simp_le:latest
+Status: Image is up to date for dokku/letsencrypt:latest
        done
 -----> Enabling ACME proxy for myapp...
 -----> Getting letsencrypt certificate for myapp...
@@ -104,7 +104,7 @@ You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configurat
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
   1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
-  2. Run [the simp_le Let's Encrypt client](https://github.com/kuba/simp_le) in a [Docker container](https://hub.docker.com/r/dokkupaas/letsencrypt-simp_le) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
+  2. Run [the simp_le Let's Encrypt client](https://github.com/kuba/simp_le) in a [Docker container](https://hub.docker.com/r/dokku/letsencrypt) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
   3. Install the TLS certificates
   4. Remove the reverse proxy and reload nginx
 

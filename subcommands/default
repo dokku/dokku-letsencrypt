@@ -93,7 +93,7 @@ letsencrypt_acme () {
   docker run --rm \
     -p "$acme_port:80" \
     -v "$config_dir:/certs" \
-    dokkupaas/letsencrypt-simp_le:latest \
+    dokku/letsencrypt:latest \
     -f account_key.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --valid_min "${graceperiod}" \

@@ -9,7 +9,7 @@ letsencrypt_update () {
   #shellcheck disable=SC2034
   declare desc="update the docker image used for ACME validation"
   dokku_log_info1 "Updating letsencrypt docker image..."
-  docker pull dokkupaas/letsencrypt-simp_le:latest
+  docker pull dokku/letsencrypt:latest
   dokku_log_verbose "done updating"
 }
 
