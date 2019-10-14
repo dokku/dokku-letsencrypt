@@ -24,6 +24,7 @@ letsencrypt_acme_revoke () {
     -v "$config_dir:/certs" \
     dokku/letsencrypt:latest \
     -f account_key.json \
+    -f account_reg.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
     --revoke \
     "${config[@]}"
