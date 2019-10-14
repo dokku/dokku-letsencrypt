@@ -3,6 +3,7 @@ set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 
 letsencrypt_acme_revoke () {
   #shellcheck disable=SC2034
@@ -22,7 +23,7 @@ letsencrypt_acme_revoke () {
   set +e
   docker run --rm \
     -v "$config_dir:/certs" \
-    dokku/letsencrypt:latest \
+    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     -f account_key.json \
     -f account_reg.json \
     -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \

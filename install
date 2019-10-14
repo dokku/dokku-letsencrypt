@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+plugin-install() {
+  pull-docker-image() {
+    declare IMAGE="$1"
+    if [[ "$PLUGIN_DISABLE_PULL" == "true" ]]; then
+      echo " !     ${PLUGIN_DISABLE_PULL_VARIABLE} environment variable detected. Not running pull command." 1>&2
+      echo " !        docker pull ${IMAGE}" 1>&2
+      return
+    fi
+    if [[ "$(docker images -q "${IMAGE}" 2>/dev/null)" == "" ]]; then
+      docker pull "${IMAGE}"
+    fi
+  }
+
+  pull-docker-image "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
+}
+
+plugin-install "$@"

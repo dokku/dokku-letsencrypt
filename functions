@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
-
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 
 letsencrypt_update () {
   #shellcheck disable=SC2034
   declare desc="update the docker image used for ACME validation"
   dokku_log_info1 "Updating letsencrypt docker image..."
-  docker pull dokku/letsencrypt:latest
-  dokku_log_verbose "done updating"
+  docker pull "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
+  dokku_log_verbose "Done updating"
 }
 
 letsencrypt_create_root () {
