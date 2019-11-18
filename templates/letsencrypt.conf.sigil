@@ -1,4 +1,6 @@
 location /.well-known/acme-challenge/ {
+  # allow every ip address
+  allow all;
 
   # disable http-auth for /.well-known/acme-challenge
   auth_basic off;
