@@ -23,14 +23,18 @@ letsencrypt_cron_job_remove () {
 
 letsencrypt_cron_job_cmd () {
   #shellcheck disable=SC2034
-  declare desc="add or remove a cron job that periodically calls auto-renew"
+  declare desc="Add or remove a cron job that periodically calls auto-renew"
 
   if [[ $2 == "--add" ]]; then
     letsencrypt_cron_job_add
   elif [[ $2 == "--remove" ]]; then
     letsencrypt_cron_job_remove
   else
-    dokku_log_verbose "Use --add or --remove to add or remove the cron job."
+    if crontab -l | fgrep "$CRON_JOB" &>/dev/null; then
+      dokku_log_verbose "Job added. Use --remove to remove the cron job."
+    else
+      dokku_log_verbose "No job added. Use --add to add the cron job."
+    fi
   fi
 }
 
