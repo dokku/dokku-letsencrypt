@@ -52,7 +52,7 @@ letsencrypt_auto_renew_cmd() {
       dokku letsencrypt "$app"
     else
       days_left=$(letsencrypt_format_timediff $time_to_renewal)
-      dokku_log_verbose "$app still has $days_left days left before renewal"
+      dokku_log_verbose "$app still has $days_left left before renewal"
     fi
 
   fi
