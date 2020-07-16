@@ -1,4 +1,4 @@
-# dokku-letsencrypt (Beta)
+# dokku-letsencrypt
 
 dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
 
