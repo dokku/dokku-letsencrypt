@@ -74,6 +74,8 @@ letsencrypt_acme () {
   declare desc="perform actual ACME validation procedure"
   local app="$1"
   local acme_port="$2"
+  local account_key="/home/dokku/account_key.json"
+  local account_reg="/home/dokku/account_reg.json"
 
   letsencrypt_create_root "$app"
 
@@ -87,6 +89,16 @@ letsencrypt_acme () {
   eval "$(config_export app "$app")"
 
   local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
+
+  if [[ -f "$account_key" ]]; then
+    dokku_log_info2 "copy global account key file $account_key to app $config_dir"
+    cp $account_key "${config_dir}/account_key.json"
+  fi
+  if [[ -f "$account_reg" ]]; then
+    dokku_log_info2 "copy global account reg file $account_reg to app $config_dir"
+    cp $account_reg "${config_dir}/account_reg.json"
+  fi
+  dokku_log_info2 "starting docker run of ${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION} now for $app"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
