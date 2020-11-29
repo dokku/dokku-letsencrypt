@@ -147,6 +147,11 @@ dokku letsencrypt foo
 
 While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_SERVER=staging` to enjoy much higher rate limits and switching back to the real server by running `dokku config:unset --no-restart myapp DOKKU_LETSENCRYPT_SERVER` once you are ready.
 
+## Dealing with rate limit on account creation
+
+There is a rate limit on the number of accounts created for one IP address and within an IPv6 /48 range.
+To avoid this, a new account is only created if you use a new value for DOKKU_LETSENCRYPT_EMAIL.
+
 ## Generating a Cert for multiple domains
 
 Your [default dokku app](http://dokku.viewdocs.io/dokku/configuration/domains/#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you apply letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing `dokku domains:add 00-default mydomain.com` and then `dokku letsencrypt 00-default` again.

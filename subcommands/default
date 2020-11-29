@@ -68,6 +68,18 @@ letsencrypt_link () {
   fi
 }
 
+letsencrypt_find_account () {
+  # dokku_log_info1 "searching for account for ${DOKKU_LETSENCRYPT_EMAIL}\n"
+  for f in `grep -l "DOKKU_LETSENCRYPT_EMAIL=\"${DOKKU_LETSENCRYPT_EMAIL}" /home/dokku/*/ENV`;  do 
+    local le_dir=${f/ENV/letsencrypt\/certs\/current/}
+    if [[ -f "${le_dir}account_key.json"  && -f "${le_dir}account_reg.json" ]]; then
+	echo $le_dir
+        return
+    fi
+  done
+  echo ""
+  return
+}
 
 letsencrypt_acme () {
   #shellcheck disable=SC2034
@@ -88,14 +100,22 @@ letsencrypt_acme () {
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
 
+  local email="$DOKKU_LETSENCRYPT_EMAIL"
+  local account_source_dir="$(letsencrypt_find_account)"
+  if [[ $account_source_dir ]]; then 
+    dokku_log_info1 "account for ${DOKKU_LETSENCRYPT_EMAIL} found in ${account_source_dir}"
+    account_key="${account_source_dir}account_key.json"
+    account_reg="${account_source_dir}account_reg.json"
+  fi
+
   local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
 
   if [[ -f "$account_key" ]]; then
-    dokku_log_info2 "copy global account key file $account_key to app $config_dir"
+    dokku_log_info2 "using copy of account key file $account_key"
     cp $account_key "${config_dir}/account_key.json"
   fi
   if [[ -f "$account_reg" ]]; then
-    dokku_log_info2 "copy global account reg file $account_reg to app $config_dir"
+    dokku_log_info2 "using copy of account reg file $account_reg"
     cp $account_reg "${config_dir}/account_reg.json"
   fi
   dokku_log_info2 "starting docker run of ${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION} now for $app"
