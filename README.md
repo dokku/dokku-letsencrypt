@@ -34,7 +34,7 @@ $ sudo dokku plugin:update letsencrypt dokku-0.4
 
 ```
 $ dokku letsencrypt:help
-    letsencrypt <app>                       Enable or renew letsencrypt certificate for app
+    letsencrypt:apply <app>                 Enable or renew letsencrypt certificate for app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
@@ -51,7 +51,7 @@ Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this co
 $ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 -----> Setting config vars
        DOKKU_LETSENCRYPT_EMAIL: your@email.tld
-$ dokku letsencrypt myapp
+$ dokku letsencrypt:apply myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
 latest: Pulling from dokku/letsencrypt
@@ -119,16 +119,16 @@ A full workflow for creating a new Dockerfile deployment with dokku-letsencrypt 
 
 1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote. This guide assumes that the Docker container will be listening for connections on port 5555 so replace container port numbers accordingly if necessary.
 2. On the dokku host, use `dokku proxy:ports-add myapp http:80:5555` to proxy HTTP port 80 to port 5555 on the Docker image
-3. On the dokku host, use `dokku letsencrypt myapp` to retrieve HTTPS certificates.
+3. On the dokku host, use `dokku letsencrypt:apply myapp` to retrieve HTTPS certificates.
 4. On the dokku host, use `dokku proxy:ports-add myapp https:443:5555` to proxy HTTPS port 443 to port 5555 on the Docker image
 5. (optional) On the dokku host, use `dokku proxy:ports-remove myapp http:5555:5555` to remove a potential leftover proxy that was automatically configured on first deploy.
 
 After these steps, the output of `dokku proxy:ports myapp` should look like this:
 ```
 -----> Port mappings for myapp
------> scheme             host port                 container port                                     
-http                      80                        5555                                               
-https                     443                       5555  
+-----> scheme             host port                 container port
+http                      80                        5555
+https                     443                       5555
 ```
 
 **Note:** Step 2 and step 4 cannot be joined together since a configured HTTPS proxy will include a `ssl_certificate` line in the app's nginx config that will cause nginx config validation to fail because no valid HTTPS certificate is available until step 3 is completed.
@@ -142,7 +142,7 @@ As a workaround, if you want to encrypt many applications, make sure to add a pr
 ```
 dokku domains:add foo foo.com
 dokku domains:remove foo foo.dokku.example.com
-dokku letsencrypt foo
+dokku letsencrypt:apply foo
 ```
 
 While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_SERVER=staging` to enjoy much higher rate limits and switching back to the real server by running `dokku config:unset --no-restart myapp DOKKU_LETSENCRYPT_SERVER` once you are ready.

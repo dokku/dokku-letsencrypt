@@ -126,10 +126,10 @@ letsencrypt_acme () {
 }
 
 
-letsencrypt_default_cmd() {
+letsencrypt_apply_cmd() {
   #shellcheck disable=SC2034
   declare desc="Validate an app's domains and retrieve a certificate"
-  local cmd="letsencrypt"
+  local cmd="apply"
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
@@ -159,4 +159,4 @@ letsencrypt_default_cmd() {
 
 }
 
-letsencrypt_default_cmd "$@"
+letsencrypt_apply_cmd "$@"
