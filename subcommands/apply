@@ -1,15 +1,16 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
 
-
-letsencrypt_acmeproxy_on () {
+letsencrypt_acmeproxy_on() {
   #shellcheck disable=SC2034
   declare desc="enable ACME proxy for an app"
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
   local acme_port="$2"
 
   local app_root="$DOKKU_ROOT/$app"
@@ -20,20 +21,19 @@ letsencrypt_acmeproxy_on () {
   # ensure the nginx.conf.d directory exists
   [[ -d "$app_config_dir" ]] || mkdir "$app_config_dir"
 
-
   # insert acme_port into config template, place resulting config in nginx.conf.d
   sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/letsencrypt.conf.sigil" \
     ACME_PORT="$acme_port" \
-    > "$app_config_dir/letsencrypt.conf"
+    >"$app_config_dir/letsencrypt.conf"
 
   restart_nginx
 }
 
-
 letsencrypt_acmeproxy_off() {
   #shellcheck disable=SC2034
   declare desc="disable ACME proxy for an app"
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local app_config_dir="$app_root/nginx.conf.d"
@@ -45,11 +45,12 @@ letsencrypt_acmeproxy_off() {
   restart_nginx
 }
 
-letsencrypt_link () {
+letsencrypt_link() {
   #shellcheck disable=SC2034
   declare desc="symlink let's encrypt certificates so they can be found by dokku"
 
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
   local config_dir="$2"
 
   local app_root="$DOKKU_ROOT/$app"
@@ -68,8 +69,7 @@ letsencrypt_link () {
   fi
 }
 
-
-letsencrypt_acme () {
+letsencrypt_acme() {
   #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
   local app="$1"
@@ -81,7 +81,7 @@ letsencrypt_acme () {
 
   # read simp_le arguments from appropriate config file into the config array
   local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
-  read -r -a config < "$config_dir/config"
+  read -r -a config <"$config_dir/config"
 
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
@@ -125,7 +125,6 @@ letsencrypt_acme () {
   nginx_build_config "$app"
 }
 
-
 letsencrypt_apply_cmd() {
   #shellcheck disable=SC2034
   declare desc="Validate an app's domains and retrieve a certificate"
@@ -152,7 +151,7 @@ letsencrypt_apply_cmd() {
   letsencrypt_update
 
   letsencrypt_acmeproxy_on "$app" "$acme_port"
-  letsencrypt_acme "$app" "$acme_port" || true    # remove ACME proxy even if this fails
+  letsencrypt_acme "$app" "$acme_port" || true # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$app"
 
   dokku_log_verbose "done"

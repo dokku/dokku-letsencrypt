@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_cleanup_cmd () {
+letsencrypt_cleanup_cmd() {
   #shellcheck disable=SC2034
   declare desc="clean up unused certificate directories"
   local cmd="letsencrypt:cleanup"
@@ -35,7 +36,7 @@ letsencrypt_cleanup_cmd () {
   dokku_log_info1 "  - current config hash $current_config"
 
   for certdir in $le_root/certs/*; do
-    local certdir_basename=$(basename "$certdir");
+    local certdir_basename=$(basename "$certdir")
 
     if [[ "$certdir_basename" == "current" ]] || [[ "$certdir_basename" == "$current_config" ]]; then continue; fi
     dokku_log_info1 "  - stale directory $certdir_basename"

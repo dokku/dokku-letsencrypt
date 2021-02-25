@@ -1,27 +1,25 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
 
-CRON_CMD="$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
-CRON_JOB="@daily $CRON_CMD"
-
-letsencrypt_cron_job_add () {
+letsencrypt_cron_job_add() {
   #shellcheck disable=SC2034
   declare desc="Add auto-renew cronjob to dokku user's crontab"
 
-  ((crontab -l || true) | (fgrep -v "$CRON_CMD" || true); echo "$CRON_JOB") | crontab -
+  ((crontab -l || true) | (fgrep -v "$LETSENCRYPT_CRON_CMD" || true); echo "$LETSENCRYPT_CRON_JOB") | crontab -
   dokku_log_info1 "Added cron job to dokku's crontab."
 }
 
-letsencrypt_cron_job_remove () {
+letsencrypt_cron_job_remove() {
   #shellcheck disable=SC2034
   declare desc="Remove auto-renew cronjob from dokku user's crontab"
 
-  (crontab -l || true) | (fgrep -v "$CRON_CMD" || true) | crontab -
+  (crontab -l || true) | (fgrep -v "$LETSENCRYPT_CRON_CMD" || true) | crontab -
   dokku_log_info1 "Removed cron job from dokku's crontab."
 }
 
-letsencrypt_cron_job_cmd () {
+letsencrypt_cron_job_cmd() {
   #shellcheck disable=SC2034
   declare desc="Add or remove a cron job that periodically calls auto-renew"
 
@@ -30,7 +28,7 @@ letsencrypt_cron_job_cmd () {
   elif [[ $2 == "--remove" ]]; then
     letsencrypt_cron_job_remove
   else
-    if crontab -l | fgrep "$CRON_JOB" &>/dev/null; then
+    if crontab -l | fgrep "$LETSENCRYPT_CRON_JOB" &>/dev/null; then
       dokku_log_verbose "Job added. Use --remove to remove the cron job."
     else
       dokku_log_verbose "No job added. Use --add to add the cron job."
