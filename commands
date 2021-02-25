@@ -4,7 +4,7 @@ set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 
 case "$1" in
 
-  help | letsencrypt:help)
+  help | letsencrypt | letsencrypt:help)
     help_content_func() {
       #shellcheck disable=SC2034
       declare desc="return letsencrypt plugin help content"
