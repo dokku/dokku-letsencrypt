@@ -39,7 +39,7 @@ $ dokku letsencrypt:help
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
     letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
-    letsencrypt:ls                          List letsencrypt-secured apps with certificate expiry
+    letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
 ```
 

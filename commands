@@ -16,7 +16,7 @@ case "$1" in
     letsencrypt:help, Display letsencrypt help
     letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
-    letsencrypt:ls, List letsencrypt-secured apps with certificate expiry times
+    letsencrypt:list, List letsencrypt-secured apps with certificate expiry times
 help_content
     }
 
