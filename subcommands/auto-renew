@@ -31,7 +31,7 @@ letsencrypt_auto_renew_cmd() {
 
         if [[ ${appExpiry[4]} -lt 0 ]]; then
           dokku_log_info1 "${appExpiry[0]} needs renewal"
-          dokku letsencrypt:apply "${appExpiry[0]}"
+          dokku letsencrypt:enable "${appExpiry[0]}"
         else
           days_left=$(letsencrypt_format_timediff "${appExpiry[4]}")
           dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
@@ -49,7 +49,7 @@ letsencrypt_auto_renew_cmd() {
 
     if [[ $time_to_renewal -lt 0 ]]; then
       dokku_log_info2 "Auto-renew ${app}..."
-      dokku letsencrypt:apply "$app"
+      dokku letsencrypt:enable "$app"
     else
       days_left=$(letsencrypt_format_timediff $time_to_renewal)
       dokku_log_verbose "$app still has $days_left left before renewal"

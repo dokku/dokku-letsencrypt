@@ -125,10 +125,10 @@ letsencrypt_acme() {
   nginx_build_config "$app"
 }
 
-letsencrypt_apply_cmd() {
+letsencrypt_enable_cmd() {
   #shellcheck disable=SC2034
-  declare desc="Validate an app's domains and retrieve a certificate"
-  local cmd="apply"
+  declare desc="Enable or renew letsencrypt for an app"
+  local cmd="enable"
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
@@ -158,4 +158,4 @@ letsencrypt_apply_cmd() {
 
 }
 
-letsencrypt_apply_cmd "$@"
+letsencrypt_enable_cmd "$@"
