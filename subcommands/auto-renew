@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
 
 letsencrypt_auto_renew_cmd() {
   #shellcheck disable=SC2034
@@ -16,7 +17,6 @@ letsencrypt_auto_renew_cmd() {
   set -- $cmd $@
   ##
 
-
   local app="$2"
 
   if [ -z "$app" ]; then
@@ -25,13 +25,13 @@ letsencrypt_auto_renew_cmd() {
     # For all apps, sorted by ascending time left until renewal.
     # This way, we'll prioritize apps that need to be renewed soon
     # if we should hit a rate limit along the way.
-    letsencrypt_list_apps_and_expiry |
-      sort -nk5 |
-      while IFS=$'\t' read -r -a appExpiry; do
+    letsencrypt_list_apps_and_expiry \
+      | sort -nk5 \
+      | while IFS=$'\t' read -r -a appExpiry; do
 
         if [[ ${appExpiry[4]} -lt 0 ]]; then
           dokku_log_info1 "${appExpiry[0]} needs renewal"
-          dokku letsencrypt "${appExpiry[0]}"
+          dokku letsencrypt:enable "${appExpiry[0]}"
         else
           days_left=$(letsencrypt_format_timediff "${appExpiry[4]}")
           dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
@@ -44,12 +44,12 @@ letsencrypt_auto_renew_cmd() {
   else
 
     local expiry=$(letsencrypt_get_expirydate "$app")
-    local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
-    local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
+    local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+    local time_to_renewal=$((expiry - grace_period - $(date +%s)))
 
     if [[ $time_to_renewal -lt 0 ]]; then
       dokku_log_info2 "Auto-renew ${app}..."
-      dokku letsencrypt "$app"
+      dokku letsencrypt:enable "$app"
     else
       days_left=$(letsencrypt_format_timediff $time_to_renewal)
       dokku_log_verbose "$app still has $days_left left before renewal"

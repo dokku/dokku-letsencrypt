@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-set -eo pipefail; [[ $DOKKU_TRACE ]] && set -x
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_update () {
+letsencrypt_update() {
   #shellcheck disable=SC2034
   declare desc="update the docker image used for ACME validation"
   dokku_log_info1 "Updating letsencrypt docker image..."
@@ -14,10 +15,11 @@ letsencrypt_update () {
   dokku_log_verbose "Done updating"
 }
 
-letsencrypt_create_root () {
+letsencrypt_create_root() {
   #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -33,17 +35,17 @@ letsencrypt_format_timediff() {
 
   if [ "$td" -lt 0 ]; then
     negative_td=1
-    td=$(( - td ));
+    td=$((-td))
   fi
 
-  local days=$(( td / (24 * 60 * 60) ));
-  td=$((td % (24 * 60 * 60) ));
+  local days=$((td / (24 * 60 * 60)))
+  td=$((td % (24 * 60 * 60)))
 
-  local hours=$(( td / (60 * 60)));
-  td=$((td % (60 * 60)));
+  local hours=$((td / (60 * 60)))
+  td=$((td % (60 * 60)))
 
-  local minutes=$(( td / 60 ));
-  local secs=$(( td % 60 ));
+  local minutes=$((td / 60))
+  local secs=$((td % 60))
 
   local res=""
   if [ $days -gt 0 ]; then
@@ -63,7 +65,7 @@ letsencrypt_format_timediff() {
   fi
 
   # remove trailing comma
-  res="$( echo "$res" | sed -re 's/, ?$//g')";
+  res="$(echo "$res" | sed -re 's/, ?$//g')"
 
   if [[ $negative_td == 1 ]]; then
     res="${res} ago"
@@ -83,14 +85,15 @@ letsencrypt_get_expirydate() {
 letsencrypt_is_active() {
   #shellcheck disable=SC2034
   declare desc="checks if app is secured by let's encrypt"
-  local app=$1; verify_app_name "$app"
+  local app=$1
+  verify_app_name "$app"
 
   # check if SSL is enabled on per-app level
   is_ssl_enabled "$app" || return 1
 
-  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes 
-  local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found");
-  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found" );
+  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
+  local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found")
+  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found")
   [[ "$cert_sha1" == "$le_sha1" ]] || return 2
 
   echo "$app"
@@ -111,9 +114,9 @@ letsencrypt_list_apps_and_expiry() {
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
     if [[ "$(letsencrypt_is_active "$app")" ]]; then
       local expiry=$(letsencrypt_get_expirydate "$app")
-      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)) );
-      local time_to_expiry=$(( expiry - $(date +%s) ))
-      local time_to_renewal=$(( expiry - grace_period - $(date +%s) ))
+      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+      local time_to_expiry=$((expiry - $(date +%s)))
+      local time_to_renewal=$((expiry - grace_period - $(date +%s)))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
     fi
   done
@@ -123,7 +126,8 @@ letsencrypt_configure_and_get_dir() {
   #shellcheck disable=SC2034
   declare desc="assemble simp_le command line arguments and create a config hash directory for them"
 
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -136,7 +140,7 @@ letsencrypt_configure_and_get_dir() {
 
   # get the selected ACME server
   local server=${DOKKU_LETSENCRYPT_SERVER:-default}
-  if [ -z "$server" ] ||  [ "$server" == "default" ]; then
+  if [ -z "$server" ] || [ "$server" == "default" ]; then
     server="https://acme-v02.api.letsencrypt.org/directory"
   elif [ "$server" == "staging" ]; then
     server="https://acme-staging-v02.api.letsencrypt.org/directory"
@@ -153,10 +157,11 @@ letsencrypt_configure_and_get_dir() {
   local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
-  local config_dir="$le_root/certs/$config_hash"; mkdir -p "$config_dir"
+  local config_dir="$le_root/certs/$config_hash"
+  mkdir -p "$config_dir"
 
   # store config settings
-  echo "$config" > "$config_dir/config"
+  echo "$config" >"$config_dir/config"
 
   echo "$config_dir"
 }
@@ -165,7 +170,8 @@ letsencrypt_check_email() {
   #shellcheck disable=SC2034
   declare desc="Check if an e-mail address is provided globally or for the app"
 
-  local app="$1"; verify_app_name "$app"
+  local app="$1"
+  verify_app_name "$app"
 
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
@@ -180,5 +186,3 @@ letsencrypt_check_email() {
     return 1
   fi
 }
-
-
