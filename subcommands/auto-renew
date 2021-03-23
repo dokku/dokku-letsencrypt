@@ -13,7 +13,6 @@ cmd-letsencrypt-auto-renew() {
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
-  [[ ${argv[0]} == "$cmd" ]] && shift 1
   [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
   set -- $cmd $@
   ##
