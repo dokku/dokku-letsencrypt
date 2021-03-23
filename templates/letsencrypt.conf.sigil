@@ -1,4 +1,4 @@
-location /.well-known/acme-challenge/ {
+location /.well-known/acme-challenge {
   # allow every ip address
   allow all;
 

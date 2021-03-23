@@ -58,7 +58,7 @@ latest: Pulling from dokku/letsencrypt
 Digest: sha256:20f2a619795c1a3252db6508f77d6d3648ad5b336e67caaf801126367dbdfa22
 Status: Image is up to date for dokku/letsencrypt:latest
        done
------> Enabling ACME proxy for myapp...
+-----> Enabling letsencrypt proxy for myapp...
 -----> Getting letsencrypt certificate for myapp...
         - Domain 'myapp.mydomain.com'
 
@@ -70,7 +70,7 @@ Status: Image is up to date for dokku/letsencrypt:latest
 -----> Creating https nginx.conf
 -----> Running nginx-pre-reload
        Reloading nginx
------> Disabling ACME proxy for myapp...
+-----> Disabling letsencrypt proxy for myapp...
        done
 ```
 

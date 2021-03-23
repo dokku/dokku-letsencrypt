@@ -10,12 +10,26 @@ set -eo pipefail
 letsencrypt_create_root() {
   #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
-  local app="$1"
+  declare APP="$1"
 
-  local app_root="$DOKKU_ROOT/$app"
+  local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
 
   mkdir -p "$le_root"
+
+  if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
+    dokku_log_info1 "Setting temporary site"
+    local NGINX_ACCESS_LOG_FORMAT="$(fn-nginx-access-log-format "$APP")"
+    local NGINX_ACCESS_LOG_PATH="$(fn-nginx-access-log-path "$APP")"
+    local NGINX_ERROR_LOG_PATH="$(fn-nginx-error-log-path "$APP")"
+
+    sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/default-nginx.conf.sigil" \
+      DOMAINS="$(get_app_domains "$APP" | xargs)" DOKKU_ROOT="$DOKKU_ROOT" APP="$APP" \
+      NGINX_ACCESS_LOG_FORMAT="$NGINX_ACCESS_LOG_FORMAT" NGINX_ACCESS_LOG_PATH="$NGINX_ACCESS_LOG_PATH" \
+      NGINX_ERROR_LOG_PATH="$NGINX_ERROR_LOG_PATH" \
+      >"$DOKKU_ROOT/$app/nginx.conf"
+    restart_nginx | sed "s/^/       /"
+  fi
 }
 
 letsencrypt_format_timediff() {
@@ -80,10 +94,11 @@ letsencrypt_is_active() {
 
   # check if SSL is enabled on per-app level
   is_ssl_enabled "$app" || return 1
+  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
 
   # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
   local cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found")
-  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found")
+  local le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/certificates/$domain.pem" 2>/dev/null) | sha1sum || echo "not_found")
   [[ "$cert_sha1" == "$le_sha1" ]] || return 2
 
   echo "$app"
@@ -120,6 +135,7 @@ letsencrypt_configure_and_get_dir() {
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
+  mkdir -p "$DOKKU_ROOT/$app/letsencrypt/account"
 
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
@@ -140,10 +156,13 @@ letsencrypt_configure_and_get_dir() {
   local domain_args=''
   for domain in $domains; do
     dokku_log_verbose " - Domain '$domain'" >&2
-    domain_args="$domain_args -d $domain"
+    domain_args="$domain_args --domains $domain"
   done
 
-  local config="--server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args"
+  eval "$(config_export global)"
+  eval "$(config_export app "$app")"
+  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
+  local config="--pem --http --http.port :80 --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args run"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"

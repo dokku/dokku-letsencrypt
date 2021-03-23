@@ -76,7 +76,7 @@ cmd-letsencrypt-revoke() {
   declare APP="$1"
   verify_app_name "$APP"
 
-  dokku_log_info2 "Revoke Let's Encrypt certificate from ${APP}..."
+  dokku_log_info2 "Revoke letsencrypt certificate from ${APP}..."
 
   letsencrypt_check_email "$APP"
   letsencrypt_acme_revoke "$APP" || true

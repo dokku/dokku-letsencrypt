@@ -42,6 +42,12 @@ cmd-letsencrypt-auto-renew() {
 
   else
     verify_app_name "$APP"
+
+    if ! letsencrypt_is_active "$app"; then
+      dokku_log_info "Letsencrypt not enabled for ${APP}"
+      return
+    fi
+
     local expiry=$(letsencrypt_get_expirydate "$APP")
     local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
     local time_to_renewal=$((expiry - grace_period - $(date +%s)))

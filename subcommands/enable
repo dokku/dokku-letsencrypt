@@ -25,7 +25,7 @@ letsencrypt_acmeproxy_on() {
     ACME_PORT="$acme_port" \
     >"$app_config_dir/letsencrypt.conf"
 
-  restart_nginx
+  restart_nginx | sed "s/^/       /"
 }
 
 letsencrypt_acmeproxy_off() {
@@ -40,7 +40,7 @@ letsencrypt_acmeproxy_off() {
 
   [[ -f "$app_config_dir/letsencrypt.conf" ]] && rm "$app_config_dir/letsencrypt.conf"
 
-  restart_nginx
+  restart_nginx | sed "s/^/       /"
 }
 
 letsencrypt_link() {
@@ -59,18 +59,20 @@ letsencrypt_link() {
   ln -nsf "$config_dir" "$le_root/certs/current"
 
   # install the let's encrypt certificate for the app
-  if [[ -z $DOKKU_APP_NAME ]]; then
-    dokku certs:add "$app" "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
-  else
-    dokku certs:add "$le_root/certs/current/fullchain.pem" "$le_root/certs/current/key.pem"
-  fi
+  unset DOKKU_APP_NAME
+  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+  dokku certs:add "$app" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
 }
 
 letsencrypt_acme() {
   #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
-  local app="$1"
-  local acme_port="$2"
+  declare app="$1" acme_port="$2"
+  local FAKE_NGINX_CONF=false
+
+  if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
+    FAKE_NGINX_CONF=true
+  fi
 
   letsencrypt_create_root "$app"
 
@@ -80,53 +82,42 @@ letsencrypt_acme() {
   local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
   read -r -a config <"$config_dir/config"
 
-  eval "$(config_export global)"
-  eval "$(config_export app "$app")"
-
-  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
-
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   set +e
+  export DOKKU_UID=$(id -u)
+  export DOKKU_GID=$(id -g)
   docker run --rm \
+    --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:80" \
     -v "$config_dir:/certs" \
-    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    -f account_key.json \
-    -f account_reg.json \
-    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
-    --valid_min "${graceperiod}" \
-    "${config[@]}"
+    goacme/lego \
+    "${config[@]}" | sed "s/^/       /"
 
-  local simple_result=$?
+  local exit_code=$?
   set -e
 
-  # handle simp_le return codes
-  # see https://github.com/kuba/simp_le/blob/master/README.rst#manifest
-  if [[ $simple_result == 0 ]]; then
-    # got certificate
-    dokku_log_info1 "Certificate retrieved successfully."
-
-  elif [[ $simple_result == 1 ]]; then
-    # no renewal necessary
-    dokku_log_info1 "No renewal necessary"
-
-  else
-    # error - don't try to link certificates
-    dokku_log_info1 "Certificate retrieval failed!"
-    return
-
+  if [[ "$FAKE_NGINX_CONF" == "true" ]]; then
+    rm "$DOKKU_ROOT/$app/nginx.conf"
   fi
 
+  if [[ $exit_code != 0 ]]; then
+    dokku_log_info1 "Certificate retrieval failed!"
+    return $exit_code
+  fi
+
+  # got certificate
+  dokku_log_info1 "Certificate retrieved successfully."
   letsencrypt_link "$app" "$config_dir"
   nginx_build_config "$app"
 }
 
 fn-lentsencrypt-enable() {
   declare APP="$1"
+  local EXIT_CODE=0
 
   verify_app_name "$APP"
-  dokku_log_info2 "Let's Encrypt $APP"
+  dokku_log_info2 "Enabling letsencrypt for $APP"
 
   # dynamically choose a port for the letsencrypt standalone authenticator
   local acme_port=$(get_available_port)
@@ -134,10 +125,16 @@ fn-lentsencrypt-enable() {
   letsencrypt_check_email "$APP"
 
   letsencrypt_acmeproxy_on "$APP" "$acme_port"
-  letsencrypt_acme "$APP" "$acme_port" || true # remove ACME proxy even if this fails
+  letsencrypt_acme "$APP" "$acme_port" || EXIT_CODE=$? # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$APP"
 
-  dokku_log_verbose "done"
+  if [[ "$EXIT_CODE" == 0 ]]; then
+    dokku_log_info1 "Done"
+    return
+  fi
+
+  dokku_log_warn "Failed to setup letsencrypt"
+  DOKKU_FAIL_EXIT_CODE="$EXIT_CODE" dokku_log_fail "Check contents of AuthURL for further information on failure"
 }
 
 cmd-letsencrypt-enable() {
