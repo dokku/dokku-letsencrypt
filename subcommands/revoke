@@ -62,7 +62,7 @@ letsencrypt_acme_revoke() {
 
 }
 
-letsencrypt_revoke_cmd() {
+cmd-letsencrypt-revoke() {
   #shellcheck disable=SC2034
   declare desc="Revoke a certificate"
   declare cmd="letsencrypt:revoke"
@@ -87,4 +87,4 @@ letsencrypt_revoke_cmd() {
   dokku_log_verbose "done"
 }
 
-letsencrypt_revoke_cmd "$@"
+cmd-letsencrypt-revoke "$@"

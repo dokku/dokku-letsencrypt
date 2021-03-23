@@ -6,7 +6,7 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_disable_cmd() {
+cmd-letsencrypt-disable() {
   #shellcheck disable=SC2034
   declare desc="Disable letsencrypt for an app"
   declare cmd="letsencrypt:disable"
@@ -37,4 +37,4 @@ letsencrypt_disable_cmd() {
   dokku_log_verbose "done"
 }
 
-letsencrypt_disable_cmd "$@"
+cmd-letsencrypt-disable "$@"

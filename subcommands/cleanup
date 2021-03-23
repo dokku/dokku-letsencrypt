@@ -4,7 +4,7 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_cleanup_cmd() {
+cmd-letsencrypt-cleanup() {
   #shellcheck disable=SC2034
   declare desc="clean up unused certificate directories"
   declare cmd="letsencrypt:cleanup"
@@ -44,4 +44,4 @@ letsencrypt_cleanup_cmd() {
 
 }
 
-letsencrypt_cleanup_cmd "$@"
+cmd-letsencrypt-cleanup "$@"

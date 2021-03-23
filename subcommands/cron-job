@@ -37,7 +37,7 @@ letsencrypt_cron_job_remove() {
   dokku_log_info1 "Removed cron job from dokku's crontab."
 }
 
-letsencrypt_cron_job_cmd() {
+cmd-letsencrypt-cron-job() {
   #shellcheck disable=SC2034
   declare desc="Add or remove a cron job that periodically calls auto-renew"
   declare cmd="letsencrypt:cron-job"
@@ -53,4 +53,4 @@ letsencrypt_cron_job_cmd() {
   fi
 }
 
-letsencrypt_cron_job_cmd "$@"
+cmd-letsencrypt-cron-job "$@"
