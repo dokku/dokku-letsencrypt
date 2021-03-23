@@ -7,7 +7,8 @@ set -eo pipefail
 letsencrypt_cleanup_cmd() {
   #shellcheck disable=SC2034
   declare desc="clean up unused certificate directories"
-  local cmd="letsencrypt:cleanup"
+  declare cmd="letsencrypt:cleanup"
+  [[ "$1" == "$cmd" ]] && shift 1
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
@@ -16,13 +17,10 @@ letsencrypt_cleanup_cmd() {
   set -- $cmd $@
   ##
 
-  local app="$2"
+  declare APP="$1"
+  verify_app_name "$APP"
 
-  [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
-
-  verify_app_name "$app"
-
-  local app_root="$DOKKU_ROOT/$app"
+  local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
 
   local current_config="$(basename "$(readlink "$le_root/certs/current")")"
@@ -32,7 +30,7 @@ letsencrypt_cleanup_cmd() {
     return 1
   fi
 
-  dokku_log_info2 "Cleaning up stale certificate directories for $app"
+  dokku_log_info2 "Cleaning up stale certificate directories for $APP"
   dokku_log_info1 "  - current config hash $current_config"
 
   for certdir in $le_root/certs/*; do

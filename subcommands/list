@@ -7,6 +7,8 @@ set -eo pipefail
 letsencrypt_ls_cmd() {
   #shellcheck disable=SC2034
   declare desc="list letsencrypt-secured apps and certificate expiries"
+  declare cmd="letsencrypt:list"
+  [[ "$1" == "$cmd" ]] && shift 1
 
   dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
 
