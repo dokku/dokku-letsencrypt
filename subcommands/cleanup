@@ -12,8 +12,7 @@ cmd-letsencrypt-cleanup() {
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
-  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
-  set -- $cmd $@
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
   ##
 
   declare APP="$1"
