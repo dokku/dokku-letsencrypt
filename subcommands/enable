@@ -62,6 +62,8 @@ letsencrypt_link() {
   unset DOKKU_APP_NAME
   local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
   dokku certs:add "$app" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
+  rm "$app_root/tls/server.letsencrypt.crt"
+  cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.letsencrypt.crt"
 }
 
 letsencrypt_acme() {
