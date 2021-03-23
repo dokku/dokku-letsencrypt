@@ -129,7 +129,7 @@ letsencrypt_list_apps_and_expiry() {
 
 letsencrypt_configure_and_get_dir() {
   #shellcheck disable=SC2034
-  declare desc="assemble simp_le command line arguments and create a config hash directory for them"
+  declare desc="assemble lego command line arguments and create a config hash directory for them"
 
   local app="$1"
 

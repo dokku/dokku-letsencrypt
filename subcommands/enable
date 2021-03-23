@@ -80,7 +80,7 @@ letsencrypt_acme() {
 
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
-  # read simp_le arguments from appropriate config file into the config array
+  # read arguments from appropriate config file into the config array
   local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
   read -r -a config <"$config_dir/config"
 

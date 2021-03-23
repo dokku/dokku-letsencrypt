@@ -103,13 +103,14 @@ You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configurat
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
   1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
-  2. Run [the simp_le Let's Encrypt client](https://github.com/zenhack/simp_le) in a [Docker container](https://hub.docker.com/r/dokku/letsencrypt) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
+  2. Run [the acme/lego Let's Encrypt client](https://github.com/go-acme/lego) in a [Docker container](https://hub.docker.com/r/goacme/lego/) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
   3. Install the TLS certificates
   4. Remove the reverse proxy and reload nginx
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
 
 ## Dockerfile Deploys
+
 When securing Dockerfile deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](http://dokku.viewdocs.io/dokku/advanced-usage/proxy-management/#proxy-port-mapping).
 
 For Dockerfile deploys, by default, dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
