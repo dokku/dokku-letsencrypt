@@ -133,8 +133,6 @@ fn-lentsencrypt-enable() {
 
   letsencrypt_check_email "$APP"
 
-  letsencrypt_update
-
   letsencrypt_acmeproxy_on "$APP" "$acme_port"
   letsencrypt_acme "$APP" "$acme_port" || true # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$APP"

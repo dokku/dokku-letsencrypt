@@ -79,7 +79,6 @@ cmd-letsencrypt-revoke() {
   dokku_log_info2 "Revoke Let's Encrypt certificate from ${APP}..."
 
   letsencrypt_check_email "$APP"
-  letsencrypt_update
   letsencrypt_acme_revoke "$APP" || true
 
   dokku_log_verbose "done"

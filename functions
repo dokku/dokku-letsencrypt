@@ -7,14 +7,6 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_update() {
-  #shellcheck disable=SC2034
-  declare desc="update the docker image used for ACME validation"
-  dokku_log_info1 "Updating letsencrypt docker image..."
-  docker pull "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
-  dokku_log_verbose "Done updating"
-}
-
 letsencrypt_create_root() {
   #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
