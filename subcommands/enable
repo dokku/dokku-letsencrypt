@@ -134,7 +134,7 @@ fn-lentsencrypt-enable() {
   fi
 
   dokku_log_warn "Failed to setup letsencrypt"
-  DOKKU_FAIL_EXIT_CODE="$EXIT_CODE" dokku_log_fail "Check contents of AuthURL for further information on failure"
+  DOKKU_FAIL_EXIT_CODE="$EXIT_CODE" dokku_log_fail "Check log output for further information on failure"
 }
 
 cmd-letsencrypt-enable() {
