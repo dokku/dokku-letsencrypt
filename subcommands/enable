@@ -91,7 +91,7 @@ letsencrypt_acme() {
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:80" \
     -v "$config_dir:/certs" \
-    goacme/lego \
+    "${LETSENCRYPT_IMAGE}:${LETSENCRYPT_IMAGE_VERSION}" \
     "${config[@]}" | sed "s/^/       /"
 
   local exit_code=$?
