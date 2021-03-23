@@ -6,21 +6,19 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_disable_cmd() {
+cmd-letsencrypt-disable() {
   #shellcheck disable=SC2034
   declare desc="Disable letsencrypt for an app"
-  local cmd="disable"
+  declare cmd="letsencrypt:disable"
+  [[ "$1" == "$cmd" ]] && shift 1
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
-  [[ ${argv[0]} == "$cmd" ]] && shift 1
-  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
-  set -- $cmd $@
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
   ##
 
-  local APP="$2"
-
-  [[ -z "$APP" ]] && echo "Please specify an app to run the command on" && exit 1
+  declare APP="$1"
+  verify_app_name "$APP"
 
   dokku_log_info1 "Disabling letsencrypt for app"
   local le_root="$DOKKU_ROOT/$APP/letsencrypt"
@@ -37,4 +35,4 @@ letsencrypt_disable_cmd() {
   dokku_log_verbose "done"
 }
 
-letsencrypt_enable_cmd "$@"
+cmd-letsencrypt-disable "$@"

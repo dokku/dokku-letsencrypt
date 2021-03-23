@@ -4,9 +4,11 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-letsencrypt_ls_cmd() {
+cmd-letsencrypt-list() {
   #shellcheck disable=SC2034
   declare desc="list letsencrypt-secured apps and certificate expiries"
+  declare cmd="letsencrypt:list"
+  [[ "$1" == "$cmd" ]] && shift 1
 
   dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
 
@@ -20,4 +22,4 @@ letsencrypt_ls_cmd() {
     done
 }
 
-letsencrypt_ls_cmd
+cmd-letsencrypt-list "$@"

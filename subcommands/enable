@@ -10,7 +10,6 @@ letsencrypt_acmeproxy_on() {
   #shellcheck disable=SC2034
   declare desc="enable ACME proxy for an app"
   local app="$1"
-  verify_app_name "$app"
   local acme_port="$2"
 
   local app_root="$DOKKU_ROOT/$app"
@@ -33,7 +32,6 @@ letsencrypt_acmeproxy_off() {
   #shellcheck disable=SC2034
   declare desc="disable ACME proxy for an app"
   local app="$1"
-  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local app_config_dir="$app_root/nginx.conf.d"
@@ -50,7 +48,6 @@ letsencrypt_link() {
   declare desc="symlink let's encrypt certificates so they can be found by dokku"
 
   local app="$1"
-  verify_app_name "$app"
   local config_dir="$2"
 
   local app_root="$DOKKU_ROOT/$app"
@@ -125,37 +122,45 @@ letsencrypt_acme() {
   nginx_build_config "$app"
 }
 
-letsencrypt_enable_cmd() {
-  #shellcheck disable=SC2034
-  declare desc="Enable or renew letsencrypt for an app"
-  local cmd="enable"
+fn-lentsencrypt-enable() {
+  declare APP="$1"
 
-  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
-  local argv=("$@")
-  [[ ${argv[0]} == "$cmd" ]] && shift 1
-  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
-  set -- $cmd $@
-  ##
-
-  local app="$2"
-
-  [[ -z "$app" ]] && echo "Please specify an app to run the command on" && exit 1
-
-  dokku_log_info2 "Let's Encrypt $app"
+  verify_app_name "$APP"
+  dokku_log_info2 "Let's Encrypt $APP"
 
   # dynamically choose a port for the letsencrypt standalone authenticator
   local acme_port=$(get_available_port)
 
-  letsencrypt_check_email "$app"
+  letsencrypt_check_email "$APP"
 
   letsencrypt_update
 
-  letsencrypt_acmeproxy_on "$app" "$acme_port"
-  letsencrypt_acme "$app" "$acme_port" || true # remove ACME proxy even if this fails
-  letsencrypt_acmeproxy_off "$app"
+  letsencrypt_acmeproxy_on "$APP" "$acme_port"
+  letsencrypt_acme "$APP" "$acme_port" || true # remove ACME proxy even if this fails
+  letsencrypt_acmeproxy_off "$APP"
 
   dokku_log_verbose "done"
-
 }
 
-letsencrypt_enable_cmd "$@"
+cmd-letsencrypt-enable() {
+  #shellcheck disable=SC2034
+  declare desc="Enable or renew letsencrypt for an app"
+  declare cmd="letsencrypt:enable"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  local argv=("$@")
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+  ##
+
+  declare APP="$1"
+  if [[ "$APP" == "--all" ]]; then
+    for app in $(dokku_apps); do
+      fn-lentsencrypt-enable "$app"
+    done
+  else
+    fn-lentsencrypt-enable "$APP"
+  fi
+}
+
+cmd-letsencrypt-enable "$@"

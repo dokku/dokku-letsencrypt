@@ -19,7 +19,6 @@ letsencrypt_create_root() {
   #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
   local app="$1"
-  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -86,7 +85,6 @@ letsencrypt_is_active() {
   #shellcheck disable=SC2034
   declare desc="checks if app is secured by let's encrypt"
   local app=$1
-  verify_app_name "$app"
 
   # check if SSL is enabled on per-app level
   is_ssl_enabled "$app" || return 1
@@ -127,7 +125,6 @@ letsencrypt_configure_and_get_dir() {
   declare desc="assemble simp_le command line arguments and create a config hash directory for them"
 
   local app="$1"
-  verify_app_name "$app"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -171,7 +168,6 @@ letsencrypt_check_email() {
   declare desc="Check if an e-mail address is provided globally or for the app"
 
   local app="$1"
-  verify_app_name "$app"
 
   eval "$(config_export global)"
   eval "$(config_export app "$app")"

@@ -62,29 +62,27 @@ letsencrypt_acme_revoke() {
 
 }
 
-letsencrypt_revoke_cmd() {
+cmd-letsencrypt-revoke() {
   #shellcheck disable=SC2034
   declare desc="Revoke a certificate"
-  local cmd="letsencrypt:revoke"
+  declare cmd="letsencrypt:revoke"
+  [[ "$1" == "$cmd" ]] && shift 1
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   local argv=("$@")
-  [[ ${argv[0]} == "$cmd" ]] && shift 1
-  [[ ! -z $DOKKU_APP_NAME ]] && set -- $DOKKU_APP_NAME $@
-  set -- $cmd $@
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
   ##
 
-  local app="$2"
+  declare APP="$1"
+  verify_app_name "$APP"
 
-  [[ -z $app ]] && echo "Please specify an app to run the command on" && exit 1
+  dokku_log_info2 "Revoke Let's Encrypt certificate from ${APP}..."
 
-  dokku_log_info2 "Revoke Let's Encrypt certificate from ${app}..."
-
-  letsencrypt_check_email "$app"
+  letsencrypt_check_email "$APP"
   letsencrypt_update
-  letsencrypt_acme_revoke "$app" || true
+  letsencrypt_acme_revoke "$APP" || true
 
   dokku_log_verbose "done"
 }
 
-letsencrypt_revoke_cmd "$@"
+cmd-letsencrypt-revoke "$@"
