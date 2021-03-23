@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+trigger-letsencrypt-post-app-clone-setup() {
+  declare desc="removes cert file when setting up a clone"
+  declare trigger="post-app-clone-setup"
+  declare OLD_APP="$1" NEW_APP="$2"
+  local APP_ROOT="$DOKKU_ROOT/$NEW_APP"
+
+  rm -rf "$APP_ROOT/letsencrypt"
+}
+
+trigger-letsencrypt-post-app-clone-setup "$@"
