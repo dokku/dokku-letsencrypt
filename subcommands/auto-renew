@@ -20,6 +20,7 @@ cmd-letsencrypt-auto-renew() {
 
   if [ -z "$APP" ]; then
     dokku_log_info2 "Auto-renewing all apps..."
+    local EXIT_CODE=0
 
     # For all apps, sorted by ascending time left until renewal.
     # This way, we'll prioritize apps that need to be renewed soon
@@ -30,7 +31,7 @@ cmd-letsencrypt-auto-renew() {
 
         if [[ ${appExpiry[4]} -lt 0 ]]; then
           dokku_log_info1 "${appExpiry[0]} needs renewal"
-          dokku letsencrypt:enable "${appExpiry[0]}"
+          dokku letsencrypt:enable "${appExpiry[0]}" || EXIT_CODE=$?
         else
           days_left=$(letsencrypt_format_timediff "${appExpiry[4]}")
           dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
@@ -39,7 +40,9 @@ cmd-letsencrypt-auto-renew() {
       done
 
     dokku_log_info2 "Finished auto-renewal"
-
+    if [[ "$EXIT_CODE" != 0 ]]; then
+      dokku_log_fail "One or more apps failed to have their certificates renewed"
+    fi
   else
     verify_app_name "$APP"
 
