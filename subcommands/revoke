@@ -14,9 +14,10 @@ letsencrypt_acme_revoke() {
   letsencrypt_create_root "$app"
 
   dokku_log_info1 "Revoking letsencrypt certificate for ${app}..."
+  local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
-  local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
+  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
   read -r -a config <"$config_dir/config"
 
   # run letsencrypt as a docker container using "certonly" mode

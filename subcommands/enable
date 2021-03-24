@@ -81,7 +81,7 @@ letsencrypt_acme() {
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
   # read arguments from appropriate config file into the config array
-  local config_dir="$(letsencrypt_configure_and_get_dir "$app")"
+  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
   read -r -a config <"$config_dir/config"
 
   # run letsencrypt as a docker container using "certonly" mode
@@ -91,10 +91,10 @@ letsencrypt_acme() {
   export DOKKU_GID=$(id -g)
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
-    -p "$acme_port:80" \
+    -p "$acme_port:$acme_port" \
     -v "$config_dir:/certs" \
-    "${LETSENCRYPT_IMAGE}:${LETSENCRYPT_IMAGE_VERSION}" \
-    "${config[@]}" | sed "s/^/       /"
+    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
+    "${config[@]}" run | sed "s/^/       /"
 
   local exit_code=$?
   set -e
