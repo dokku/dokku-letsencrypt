@@ -131,7 +131,7 @@ letsencrypt_configure_and_get_dir() {
   #shellcheck disable=SC2034
   declare desc="assemble lego command line arguments and create a config hash directory for them"
 
-  local app="$1"
+  local app="$1" acme_port="$2"
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
@@ -162,7 +162,7 @@ letsencrypt_configure_and_get_dir() {
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
   local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
-  local config="--pem --http --http.port :80 --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args run"
+  local config="--pem --http --http.port :$acme_port --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"
