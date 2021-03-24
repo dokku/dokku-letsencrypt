@@ -2,9 +2,9 @@
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 
 letsencrypt_acme_revoke() {
   #shellcheck disable=SC2034
@@ -23,35 +23,36 @@ letsencrypt_acme_revoke() {
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   set +e
+  export DOKKU_UID=$(id -u)
+  export DOKKU_GID=$(id -g)
   docker run --rm \
+    --user $DOKKU_UID:$DOKKU_GID \
+    -p "$acme_port:$acme_port" \
     -v "$config_dir:/certs" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    -f account_key.json \
-    -f account_reg.json \
-    -f fullchain.pem -f chain.pem -f cert.pem -f key.pem \
-    --revoke \
-    "${config[@]}"
+    "${config[@]}" revoke | sed "s/^/       /"
 
-  local simple_result=$?
+  local exit_code=$?
   set -e
 
   # handle return codes
-  if [[ $simple_result == 0 ]]; then
+  if [[ $exit_code == 0 ]]; then
     # certificate revoked
     dokku_log_info1 "Certificate revoked successfully."
-
   else
     # error - don't try to link certificates
     dokku_log_info1 "Certificate revocation failed (code $simple_result)!"
     return
-
   fi
 
+  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+
   # move revoked certificates away
-  mv -f "$config_dir/fullchain.pem" "$config_dir/fullchain.pem.revoked"
-  mv -f "$config_dir/chain.pem" "$config_dir/chain.pem.revoked"
-  mv -f "$config_dir/cert.pem" "$config_dir/cert.pem.revoked"
-  mv -f "$config_dir/key.pem" "$config_dir/key.pem.revoked"
+  mv -f "$config_dir/certificates/$domain.crt" "$config_dir/certificates/$domain.crt.revoked"
+  mv -f "$config_dir/certificates/$domain.issuer.crt" "$config_dir/certificates/$domain.issuer.crt"
+  mv -f "$config_dir/certificates/$domain.key" "$config_dir/certificates/$domain.key"
+  mv -f "$config_dir/certificates/$domain.key" "$config_dir/certificates/$domain.key"
+  mv -f "$config_dir/certificates/$domain.pem" "$config_dir/certificates/key.pem.revoked"
 
   # removing the certificate will automatically reconfigure nginx
   if [[ -z $DOKKU_APP_NAME ]]; then
