@@ -47,7 +47,7 @@ cmd-letsencrypt-auto-renew() {
     verify_app_name "$APP"
 
     if ! letsencrypt_is_active "$app"; then
-      dokku_log_info "Letsencrypt not enabled for ${APP}"
+      dokku_log_info1 "Letsencrypt not enabled for ${APP}"
       return
     fi
 
