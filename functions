@@ -84,7 +84,7 @@ letsencrypt_get_expirydate() {
   declare desc="print SSL certificate expiry date as UNIX timestamp"
   local app="$1"
 
-  if [[ "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" ]]; then
+  if [[ -f "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" ]]; then
     date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
   else
     date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$app/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
@@ -102,7 +102,7 @@ letsencrypt_is_active() {
 
   # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
   local cert_sha1
-  if [[ "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" ]]; then
+  if [[ -f "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" ]]; then
     cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.letsencrypt.crt" 2>/dev/null) | sha1sum || echo "not_found")
   else
     cert_sha1=$( (cat "$DOKKU_ROOT/$app/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found")
