@@ -110,7 +110,7 @@ letsencrypt_is_active() {
 
   local le_sha1="not_found"
   if [[ -f "$DOKKU_ROOT/$app/letsencrypt/certs/current/certificates/$domain.pem" ]]; then
-    le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/certificates/$domain.pem" 2>/dev/null) | sha1sum || echo "not_found")
+    le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/certificates/$domain.crt" 2>/dev/null) | sha1sum || echo "not_found")
   elif [[ -f "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" ]]; then
     le_sha1=$( (cat "$DOKKU_ROOT/$app/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found")
   fi
