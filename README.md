@@ -141,7 +141,12 @@ While playing around with this plugin, you might want to switch to the let's enc
 
 ## Generating a Cert for multiple domains
 
-Your [default dokku app](http://dokku.viewdocs.io/dokku/configuration/domains/#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing `dokku domains:add 00-default mydomain.com` and then `dokku letsencrypt 00-default` again.
+Your [default dokku app](http://dokku.viewdocs.io/dokku/configuration/domains/#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
+
+```
+dokku domains:add 00-default mydomain.com
+dokku letsencrypt:enable 00-default
+```
 
 ## License
 
