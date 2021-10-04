@@ -181,7 +181,7 @@ letsencrypt_configure_and_get_dir() {
   local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$app" DOKKU_LETSENCRYPT_ARGS || echo '')"
   local config="--pem --http --http.port :$acme_port --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
 
-  local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  local config_hash=$(echo "$config" | tr -d " :$acme_port" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"
   mkdir -p "$config_dir"
 
