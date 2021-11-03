@@ -73,6 +73,18 @@ You could also use the following command to set an email address for global. So 
 dokku config:set --global DOKKU_LETSENCRYPT_EMAIL=your@email.tld
 ```
 
+## Automatic certificate renewal
+
+To enable the automatic renewal of certificates, a cronjob needs to be defined for
+the `dokku` user which will run daily and renew any certificates that are due to
+be renewed.
+
+This can be done using the following command:
+
+```
+dokku letsencrypt:cron-job --add
+```
+
 ## Configuration
 `dokku-letsencrypt` uses the [Dokku environment variable manager](http://dokku.viewdocs.io/dokku/configuration-management/) for all configuration. The important environment variables are:
 
