@@ -2,9 +2,9 @@
 
 dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
 
-**Note:** By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
-
-**Note:** If you like Let's Encrypt, please consider [donating to Let's Encrypt](https://letsencrypt.org/donate).
+> By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
+>
+> If you like Let's Encrypt, please consider [donating to Let's Encrypt](https://letsencrypt.org/donate).
 
 ## Installation
 
@@ -33,6 +33,14 @@ $ dokku letsencrypt:help
 ```
 
 ## Usage
+
+> If using this plugin with Cloudflare:
+>
+> - The domain dns should be setup in "Proxied" mode
+> - SSL/TLS mode must be in "Full" mode
+>   - Using letsencrypt in "Flexible" mode will cause Cloudflare to detect your server as down
+>
+> If using "Flexible" SSL/TLS mode, avoid using this plugin.
 
 The app which is obtaining a letsencrypt certificate must already be deployed and accessible over the internet (i.e. in the browser) in order to add letsencrypt to your app. This plugin will fail to apply for an app that has otherwise only been created.
 
