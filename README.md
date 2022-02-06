@@ -39,8 +39,14 @@ $ dokku letsencrypt:help
 > - The domain dns should be setup in "Proxied" mode
 > - SSL/TLS mode must be in "Full" mode
 >   - Using letsencrypt in "Flexible" mode will cause Cloudflare to detect your server as down
+>   - Using "Full" mode will require disabling SSL/TLS in cloudflare in order to renew the certificate.
 >
 > If using "Flexible" SSL/TLS mode, avoid using this plugin.
+>
+> See these two links for more details:
+> 
+>  - https://community.cloudflare.com/t/lets-encrypt-ssl-cannot-renew-with-cloudflare/257666
+>  - https://support.cloudflare.com/hc/en-us/articles/214820528-Validating-a-Let-s-Encrypt-Certificate-on-a-Site-Already-Active-on-Cloudflare
 
 The app which is obtaining a letsencrypt certificate must already be deployed and accessible over the internet (i.e. in the browser) in order to add letsencrypt to your app. This plugin will fail to apply for an app that has otherwise only been created.
 
