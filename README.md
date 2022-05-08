@@ -96,6 +96,9 @@ Variable                        | Default           | Description
 `DOKKU_LETSENCRYPT_GRACEPERIOD` | 5184000 (30 days) | Time in seconds left on a certificate before it should get renewed
 `DOKKU_LETSENCRYPT_SERVER`      | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 `DOKKU_LETSENCRYPT_ARGS`        | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
+`DOKKU_LETSENCRYPT_CHALLANGE_MODE` | http           | The challange mode you'd like to use. Valid values are `http` and `dns`.
+`DOKKU_LETSENCRYPT_DNS_PROVIDER`   | (none)         | You must set this to a dns provider code from the [lego docs](https://go-acme.github.io/lego/dns/) if `DOKKU_LETSENCRYPT_CHALLANGE_MODE` is `dns`.
+`DOKKU_LETSENCRYPT_LEGO_ENV_VARS` | (none)          | Additional environment variables for lego CLI.
 
 You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 
