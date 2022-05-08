@@ -143,12 +143,6 @@ letsencrypt_list_apps_and_expiry() {
   done
 }
 
-get_lego_env_vars() {
-  #shellcheck disable=SC2034
-  declare desc="assemble lego environment variables and create a config hash directory for them"
-  
-}
-
 letsencrypt_configure_and_get_dir() {
   #shellcheck disable=SC2034
   declare desc="assemble lego command line arguments and create a config hash directory for them"
