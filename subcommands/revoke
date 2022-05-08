@@ -29,6 +29,7 @@ letsencrypt_acme_revoke() {
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
     -v "$config_dir:/certs" \
+    --env-file "$config_dir/env.list" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" revoke | sed "s/^/       /"
 

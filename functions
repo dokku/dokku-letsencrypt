@@ -143,6 +143,12 @@ letsencrypt_list_apps_and_expiry() {
   done
 }
 
+get_lego_env_vars() {
+  #shellcheck disable=SC2034
+  declare desc="assemble lego environment variables and create a config hash directory for them"
+  
+}
+
 letsencrypt_configure_and_get_dir() {
   #shellcheck disable=SC2034
   declare desc="assemble lego command line arguments and create a config hash directory for them"
@@ -178,15 +184,47 @@ letsencrypt_configure_and_get_dir() {
   eval "$(config_export global)"
   eval "$(config_export app "$app")"
   local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
+  local challange_mode="${DOKKU_LETSENCRYPT_CHALLANGE_MODE:-http}"
+  local dns_provider="${DOKKU_LETSENCRYPT_DNS_PROVIDER}"
+  if [[ "$challange_mode" = "dns" && -n "$dns_provider" ]]; then
+    challange_mode="$challange_mode $dns_provider"
+  fi
+
+  if [[ "$challange_mode" = "dns" && -z "$dns_provider" ]]; then
+    challange_mode="http"
+    echo "DNS Provider is not set for DNS challange mode. Falling back to http."
+  fi
   local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$app" DOKKU_LETSENCRYPT_ARGS || echo '')"
-  local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
+
+  local config="--pem --$challange_mode --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"
   mkdir -p "$config_dir"
 
+  touch "$config_dir/env.list"
+
   # store config settings
-  echo "--http.port :$acme_port $config" >"$config_dir/config"
+  if [[ "$challange_mode" = "http" ]]; then
+    echo "--http.port :$acme_port $config" >"$config_dir/config"
+  else
+    echo "$config" >"$config_dir/config"
+
+    # store env var settings if DNS challange is used
+    declare -a env_var_array
+    local env_vars_raw="$(config_get --global DOKKU_LETSENCRYPT_LEGO_ENV_VARS || config_get "$app" DOKKU_LETSENCRYPT_LEGO_ENV_VARS || echo '')"
+    if [[ -n "$env_vars_raw" ]]; then
+      orig_ifs="$IFS"
+      IFS=';'
+      read -r -a env_var_array <<< "$env_vars_raw"
+      IFS="$orig_ifs"
+    fi
+
+    for key_value_pair in "${env_var_array[@]}"; do
+      echo "$key_value_pair" >> "$config_dir/env.list"
+    done
+  fi
+
 
   echo "$config_dir"
 }
