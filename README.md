@@ -108,7 +108,11 @@ Dokku's default nginx template will automatically redirect HTTP requests to HTTP
 
 You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configuration/nginx/) if you want different behaviour.
 
-## Design
+## Solving challanges with HTTP
+
+The default supported way of solving ACME challanges is HTTP.
+
+### Design
 
 `dokku-letsencrypt` gets around having to disable your web server using the following workflow:
 
@@ -118,6 +122,27 @@ You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configurat
   4. Remove the reverse proxy and reload nginx
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
+
+## Solving challanges with DNS-01
+
+To change the challange solver to dns you need to set the `DOKKU_LETSENCRYPT_CHALLANGE_MODE` variable to `dns`.
+```bash
+dokku config:set myapp DOKKU_LETSENCRYPT_CHALLANGE_MODE=dns
+```
+or you can set it globally:   
+```bash
+dokku config:set --global DOKKU_LETSENCRYPT_CHALLANGE_MODE=dns
+```
+Additionaly you will have to set the DNS provider you'd like to use. The full list of providers and their required environment variables can be found in the [lego documentation](https://go-acme.github.io/lego/dns/). For the following example we use `AWS Route53`:
+```bash
+dokku config:set DOKKU_LETSENCRYPT_DNS_PROVIDER=route53
+dokku config:set myapp DOKKU_LETSENCRYPT_LEGO_ENV_VARS="AWS_ACCESS_KEY_ID=AKIA5F0N000C0P000000;AWS_SECRET_ACCESS_KEY=xxx;AWS_HOSTED_ZONE_ID=Z01010100000000000000"
+```
+or you can set it globally: 
+```bash
+dokku config:set --global DOKKU_LETSENCRYPT_DNS_PROVIDER=route53
+dokku config:set --global DOKKU_LETSENCRYPT_LEGO_ENV_VARS="AWS_ACCESS_KEY_ID=AKIA5F0N000C0P000000;AWS_SECRET_ACCESS_KEY=xxx;AWS_HOSTED_ZONE_ID=Z01010100000000000000"
+```
 
 ## Dockerfile Deploys
 
