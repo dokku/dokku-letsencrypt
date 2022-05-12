@@ -127,6 +127,7 @@ fn-lentsencrypt-enable() {
   domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
   if [[ -z "$domain" ]]; then
     dokku_log_warn "No domains detected for $APP"
+    return 1
   fi
 
   dokku_log_info2 "Enabling letsencrypt for $APP"
