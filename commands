@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-[[ " help http-auth:help " == *" $1 "* ]] || exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
+[[ " help letsencrypt:help " == *" $1 "* ]] || exit "$DOKKU_NOT_IMPLEMENTED_EXIT"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/help-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
