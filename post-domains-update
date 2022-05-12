@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+trigger-letsencrypt-post-domains-update() {
+  declare desc="updates cert file when domains are added or set"
+  declare trigger="post-domains-update"
+  declare APP="$1" ACTION="$2"
+
+  if [[ "$ACTION" == "add" ]] || [[ "$ACTION" == "set" ]]; then
+    dokku letsencrypt:enable "$APP"
+  fi
+}
+
+trigger-letsencrypt-post-domains-update "$@"
