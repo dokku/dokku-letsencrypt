@@ -120,9 +120,15 @@ letsencrypt_acme() {
 fn-lentsencrypt-enable() {
   declare APP="$1"
   local EXIT_CODE=0
-  local acme_port
+  local acme_port domain
 
   verify_app_name "$APP"
+
+  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  if [[ -z "$domain" ]]; then
+    dokku_log_warn "No domains detected for $APP"
+  fi
+
   dokku_log_info2 "Enabling letsencrypt for $APP"
 
   # dynamically choose a port for the letsencrypt standalone authenticator
