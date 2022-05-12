@@ -52,6 +52,7 @@ letsencrypt_link() {
 
   local app_root="$DOKKU_ROOT/$app"
   local le_root="$app_root/letsencrypt"
+  local domain
 
   dokku_log_info1 "Installing let's encrypt certificates"
 
@@ -60,7 +61,7 @@ letsencrypt_link() {
 
   # install the let's encrypt certificate for the app
   unset DOKKU_APP_NAME
-  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+  domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
   dokku certs:add "$app" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
   rm -f "$app_root/tls/server.letsencrypt.crt" "$app_root/tls/server.crt"
   cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.letsencrypt.crt"
@@ -72,6 +73,7 @@ letsencrypt_acme() {
   declare desc="perform actual ACME validation procedure"
   declare app="$1" acme_port="$2"
   local FAKE_NGINX_CONF=false
+  local config_dir
 
   if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
     FAKE_NGINX_CONF=true
@@ -82,7 +84,7 @@ letsencrypt_acme() {
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
   # read arguments from appropriate config file into the config array
-  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
+  config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
   read -r -a config <"$config_dir/config"
 
   # run letsencrypt as a docker container using "certonly" mode
@@ -118,12 +120,13 @@ letsencrypt_acme() {
 fn-lentsencrypt-enable() {
   declare APP="$1"
   local EXIT_CODE=0
+  local acme_port
 
   verify_app_name "$APP"
   dokku_log_info2 "Enabling letsencrypt for $APP"
 
   # dynamically choose a port for the letsencrypt standalone authenticator
-  local acme_port=$(get_available_port)
+  acme_port=$(get_available_port)
 
   letsencrypt_check_email "$APP"
 
