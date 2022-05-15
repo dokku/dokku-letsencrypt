@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
@@ -120,6 +121,16 @@ letsencrypt_is_active() {
   echo "$app"
 }
 
+letsencrypt_get_graceperiod() {
+  local app="$1"
+  echo $(fn-plugin-property-get "letsencrypt" "global" "graceperiod" "" || fn-plugin-property-get "letsencrypt" "$app" "graceperiod" "$((60 * 60 * 24 * 30))")
+}
+
+letsencrypt_get_email() {
+  local app="$1"
+  echo $(fn-plugin-property-get "letsencrypt" "global" "email" "" || fn-plugin-property-get "letsencrypt" "$app" "email" "")
+}
+
 letsencrypt_list_apps_and_expiry() {
   #shellcheck disable=SC2034
   declare desc="list all letsencrypt-secured apps together with their expiry date"
@@ -135,7 +146,7 @@ letsencrypt_list_apps_and_expiry() {
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
     if [[ "$(letsencrypt_is_active "$app")" ]]; then
       local expiry=$(letsencrypt_get_expirydate "$app")
-      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+      local grace_period=$(letsencrypt_get_graceperiod)
       local time_to_expiry=$((expiry - $(date +%s)))
       local time_to_renewal=$((expiry - grace_period - $(date +%s)))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
@@ -153,14 +164,11 @@ letsencrypt_configure_and_get_dir() {
   local le_root="$app_root/letsencrypt"
   mkdir -p "$DOKKU_ROOT/$app/letsencrypt/account"
 
-  eval "$(config_export global)"
-  eval "$(config_export app "$app")"
-
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server=${DOKKU_LETSENCRYPT_SERVER:-default}
+  local server="$(fn-plugin-property-get "letsencrypt" "$app" "server" "default")"
   if [ -z "$server" ] || [ "$server" == "default" ]; then
     server="https://acme-v02.api.letsencrypt.org/directory"
   elif [ "$server" == "staging" ]; then
@@ -175,11 +183,10 @@ letsencrypt_configure_and_get_dir() {
     domain_args="$domain_args --domains $domain"
   done
 
-  eval "$(config_export global)"
-  eval "$(config_export app "$app")"
-  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
-  local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$app" DOKKU_LETSENCRYPT_ARGS || echo '')"
-  local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
+  local graceperiod=$(letsencrypt_get_graceperiod "$app")
+  local extra_args=$(fn-plugin-property-get "letsencrypt" "global" "lego-args" "" || fn-plugin-property-get "letsencrypt" "$app" "lego-args" "")
+  local email=$(letsencrypt_get_email "$app")
+  local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"
@@ -193,21 +200,6 @@ letsencrypt_configure_and_get_dir() {
   echo "$DOKKU_HOST_ROOT/$app/letsencrypt/certs/$config_hash:$config_dir"
 }
 
-letsencrypt_get_email() {
-  #shellcheck disable=SC2034
-  declare desc="Check if an e-mail address is provided globally or for the app"
-  declare APP="$1"
-
-  eval "$(config_export global)"
-  if [[ -n "$DOKKU_LETSENCRYPT_EMAIL" ]]; then
-    echo "$DOKKU_LETSENCRYPT_EMAIL"
-    return
-  fi
-
-  eval "$(config_export app "$APP")"
-  echo "$DOKKU_LETSENCRYPT_EMAIL"
-}
-
 letsencrypt_check_email() {
   #shellcheck disable=SC2034
   declare desc="Check if an e-mail address is provided globally or for the app"
@@ -217,7 +209,7 @@ letsencrypt_check_email() {
   if [[ -z "$(letsencrypt_get_email "$APP")" ]]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
+    dokku_log_warn "  dokku letsencrypt:set $APP email <e-mail>"
     return 1
   fi
 }

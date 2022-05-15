@@ -52,7 +52,7 @@ cmd-letsencrypt-auto-renew() {
     fi
 
     local expiry=$(letsencrypt_get_expirydate "$APP")
-    local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+    local grace_period=$(letsencrypt_get_graceperiod "$APP")
     local time_to_renewal=$((expiry - grace_period - $(date +%s)))
 
     if [[ $time_to_renewal -lt 0 ]]; then

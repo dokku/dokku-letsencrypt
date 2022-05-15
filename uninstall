@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+letsencrypt-uninstall() {
+  declare PLUGIN="$1"
+  if [[ "$PLUGIN" != "$PLUGIN_COMMAND_PREFIX" ]]; then
+    return
+  fi
+
+  fn-plugin-property-destroy "letsencrypt" "_all_"
+}
+
+letsencrypt-uninstall "$@"

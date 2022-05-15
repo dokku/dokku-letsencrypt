@@ -17,6 +17,8 @@ plugin-install() {
   }
 
   pull-docker-image "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
+  fn-plugin-property-setup "letsencrypt"
+  fn-plugin-property-write "letsencrypt" "global" "cron-cmd" "$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
 
   mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt"
   chown -R "${DOKKU_SYSTEM_USER}:${DOKKU_SYSTEM_GROUP}" "${DOKKU_LIB_ROOT}/data/letsencrypt"
