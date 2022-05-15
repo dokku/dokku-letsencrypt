@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
+
+migrate_config_to_props() {
+  local old_global_grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD)
+  local old_global_extra_args=$(config_get --global DOKKU_LETSENCRYPT_ARGS)
+  [[ -n "$old_global_grace_period" ]] && fn-plugin-property-write "letsencrypt" "--global" "graceperiod" "$old_global_grace_period"
+  [[ -n "$old_global_extra_args" ]] && fn-plugin-property-write "letsencrypt" "--global" "lego-args" "$old_global_extra_args"
+
+  for app in $(dokku_apps); do
+    if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
+    if [[ "$(letsencrypt_is_active "$app")" ]]; then
+      local old_grace_period=$(config_get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+      local old_extra_args="$(config_get "$app" DOKKU_LETSENCRYPT_ARGS || echo '')"
+
+      [[ -n "$old_grace_period" ]] && fn-plugin-property-write "letsencrypt" "$app" "graceperiod" "$old_grace_period"
+      [[ -n "$old_extra_args" ]] && fn-plugin-property-write "letsencrypt" "$app" "lego-args" "$old_extra_args"
+    fi
+  done
+}
 
 plugin-install() {
   pull-docker-image() {
@@ -18,7 +36,10 @@ plugin-install() {
 
   pull-docker-image "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
   fn-plugin-property-setup "letsencrypt"
-  fn-plugin-property-write "letsencrypt" "global" "cron-cmd" "$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
+  local cron_cmd=$(fn-plugin-property-get "letsencrypt" "--global" "cron-cmd")
+  local has_migration_happened=$(fn-plugin-property-get "letsencrypt" "--global" "has_config_migration_happened")
+  [[ -z "$cron_cmd" ]] && fn-plugin-property-write "letsencrypt" "--global" "cron-cmd" "$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
+  [[ -z "$has_migration_happened" ]] && migrate_config_to_props && fn-plugin-property-write "letsencrypt" "--global" "has_config_migration_happened" "1"
 
   mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt"
   chown -R "${DOKKU_SYSTEM_USER}:${DOKKU_SYSTEM_GROUP}" "${DOKKU_LIB_ROOT}/data/letsencrypt"

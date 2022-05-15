@@ -122,13 +122,17 @@ letsencrypt_is_active() {
 }
 
 letsencrypt_get_graceperiod() {
+  #shellcheck disable=SC2034
+  declare desc="gets the grace period to use with letsencrypt from the properties store"
   local app="$1"
-  echo $(fn-plugin-property-get "letsencrypt" "global" "graceperiod" "" || fn-plugin-property-get "letsencrypt" "$app" "graceperiod" "$((60 * 60 * 24 * 30))")
+  fn-plugin-property-get "letsencrypt" "--global" "graceperiod" "" || fn-plugin-property-get "letsencrypt" "$app" "graceperiod" "$((60 * 60 * 24 * 30))"
 }
 
 letsencrypt_get_email() {
+  #shellcheck disable=SC2034
+  declare desc="gets the email to use for letsencrypt from the properties store"
   local app="$1"
-  echo $(fn-plugin-property-get "letsencrypt" "global" "email" "" || fn-plugin-property-get "letsencrypt" "$app" "email" "")
+  fn-plugin-property-get "letsencrypt" "--global" "email" "" || fn-plugin-property-get "letsencrypt" "$app" "email" ""
 }
 
 letsencrypt_list_apps_and_expiry() {
@@ -146,7 +150,7 @@ letsencrypt_list_apps_and_expiry() {
     if [[ "$app" == "=====>" ]] || [[ "$app" == "My" ]] || [[ "$app" == "Apps" ]]; then continue; fi
     if [[ "$(letsencrypt_is_active "$app")" ]]; then
       local expiry=$(letsencrypt_get_expirydate "$app")
-      local grace_period=$(letsencrypt_get_graceperiod)
+      local grace_period=$(letsencrypt_get_graceperiod "$app")
       local time_to_expiry=$((expiry - $(date +%s)))
       local time_to_renewal=$((expiry - grace_period - $(date +%s)))
       echo -e "$app\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
@@ -168,7 +172,7 @@ letsencrypt_configure_and_get_dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server="$(fn-plugin-property-get "letsencrypt" "$app" "server" "default")"
+  local server=$(fn-plugin-property-get "letsencrypt" "$app" "server" "default")
   if [ -z "$server" ] || [ "$server" == "default" ]; then
     server="https://acme-v02.api.letsencrypt.org/directory"
   elif [ "$server" == "staging" ]; then
@@ -184,7 +188,7 @@ letsencrypt_configure_and_get_dir() {
   done
 
   local graceperiod=$(letsencrypt_get_graceperiod "$app")
-  local extra_args=$(fn-plugin-property-get "letsencrypt" "global" "lego-args" "" || fn-plugin-property-get "letsencrypt" "$app" "lego-args" "")
+  local extra_args="$(fn-plugin-property-get "letsencrypt" "--global" "lego-args" "" || fn-plugin-property-get "letsencrypt" "$app" "lego-args" "")"
   local email=$(letsencrypt_get_email "$app")
   local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 

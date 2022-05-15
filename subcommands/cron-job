@@ -12,15 +12,31 @@ fn-letsencrypt-has-cron-support() {
   fi
 }
 
+letsencrypt_get_cron_cmd() {
+  #shellcheck disable=SC2034
+  declare desc="returns the cron command from the properties store"
+  fn-plugin-property-get "letsencrypt" "--global" "cron-cmd" "$PLUGIN_AVAILABLE_PATH/letsencrypt/cron-job"
+}
+
+letsencrypt_get_cron_cmd() {
+  #shellcheck disable=SC2034
+  declare desc="returns the cron job from the properties store"
+  fn-plugin-property-get "letsencrypt" "--global" "cron-job" "@daily $(letsencrypt_get_cron_cmd)"
+}
+
 letsencrypt_cron_job_add() {
   #shellcheck disable=SC2034
   declare desc="Add auto-renew cronjob to dokku user's crontab"
+
+
 
   touch "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
   if fn-letsencrypt-has-cron-support; then
     plugn trigger cron-write
   else
-    ((crontab -l || true) | (fgrep -v "$LETSENCRYPT_CRON_CMD" || true); echo "$LETSENCRYPT_CRON_JOB") | crontab -
+    local cron_cmd=$(letsencrypt_get_cron_cmd)
+    local cron_job=$(letsencrypt_get_cron_job)
+    ((crontab -l || true) | (grep -F -v "$cron_cmd" || true); echo "$LETSENCRYPT_CRON_JOB") | crontab -
   fi
   dokku_log_info1 "Added cron job to dokku's crontab."
 }
@@ -33,7 +49,8 @@ letsencrypt_cron_job_remove() {
   if fn-letsencrypt-has-cron-support; then
     plugn trigger cron-write
   else
-    (crontab -l || true) | (fgrep -v "$LETSENCRYPT_CRON_CMD" || true) | crontab -
+    local cron_cmd=$(letsencrypt_get_cron_cmd)
+    (crontab -l || true) | (grep -F -v "$cron_cmd" || true) | crontab -
   fi
   dokku_log_info1 "Removed cron job from dokku's crontab."
 }

@@ -14,16 +14,17 @@ fn-in-array() {
 }
 
 letsencrypt-set-cmd() {
+  #shellcheck disable=SC2034
   declare desc="sets a letsencrypt configuration value for an app"
   local cmd="$PLUGIN_COMMAND_PREFIX:set" argv=("$@")
   [[ ${argv[0]} == "$cmd" ]] && shift 1
   declare APP="$1" KEY="$2" VALUE="$3"
-  local VALID_KEYS=("image" "image-version" "cron-cmd" "email" "graceperiod" "server" "lego-args")
+  local VALID_KEYS=("cron-cmd" "cron-job" "email" "graceperiod" "server" "lego-args")
   [[ -z "$APP" ]] && dokku_log_fail "Please specify an app to run the command on"
   [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
 
   if ! fn-in-array "$KEY" "${VALID_KEYS[@]}"; then
-    dokku_log_fail "Invalid key specified, valid keys include: image, image-version, cron-cmd, email, graceperiod, server, lego-args"
+    dokku_log_fail "Invalid key specified, valid keys include: cron-cmd, cron-job, email, graceperiod, server, lego-args"
   fi
 
   if [[ -n "$VALUE" ]]; then
