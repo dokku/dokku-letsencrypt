@@ -121,18 +121,33 @@ letsencrypt_is_active() {
   echo "$app"
 }
 
+letsencrypt_get_property() {
+  #shellcheck disable=SC2034
+  declare desc="gets a letsencrypt specific value, first from the global scope then from the app specific scope"
+  local app="$1"
+  local property_name="$2"
+  local property_default_value="$3"
+  local property_value=""
+  property_value="$(fn-plugin-property-get "letsencrypt" --global "$property_name" "")"
+  if [[ -z "$property_value" ]]; then
+    fn-plugin-property-get "letsencrypt" "$app" "$property_name" "$property_default_value"
+  else
+    echo "$property_value"
+  fi
+}
+
 letsencrypt_get_graceperiod() {
   #shellcheck disable=SC2034
   declare desc="gets the grace period to use with letsencrypt from the properties store"
   local app="$1"
-  fn-plugin-property-get "letsencrypt" "--global" "graceperiod" "" || fn-plugin-property-get "letsencrypt" "$app" "graceperiod" "$((60 * 60 * 24 * 30))"
+  letsencrypt_get_property "$app" "graceperiod" "$((60 * 60 * 24 * 30))"
 }
 
 letsencrypt_get_email() {
   #shellcheck disable=SC2034
   declare desc="gets the email to use for letsencrypt from the properties store"
   local app="$1"
-  fn-plugin-property-get "letsencrypt" "--global" "email" "" || fn-plugin-property-get "letsencrypt" "$app" "email" ""
+  letsencrypt_get_property "$app" "email" ""
 }
 
 letsencrypt_list_apps_and_expiry() {
@@ -188,7 +203,7 @@ letsencrypt_configure_and_get_dir() {
   done
 
   local graceperiod=$(letsencrypt_get_graceperiod "$app")
-  local extra_args="$(fn-plugin-property-get "letsencrypt" "--global" "lego-args" "" || fn-plugin-property-get "letsencrypt" "$app" "lego-args" "")"
+  local extra_args="$(letsencrypt_get_property "$app" "$email" "")"
   local email=$(letsencrypt_get_email "$app")
   local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
