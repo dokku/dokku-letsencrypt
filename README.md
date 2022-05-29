@@ -31,6 +31,7 @@ $ dokku letsencrypt:help
     letsencrypt:enable <app>                Enable or renew letsencrypt for an app
     letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
+    letsencrypt:set <app> <key> [<value>]   Set or clear a key. Use it to change settings.
 ```
 
 ## Usage
@@ -54,9 +55,8 @@ The app which is obtaining a letsencrypt certificate must already be deployed an
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
------> Setting config vars
-       DOKKU_LETSENCRYPT_EMAIL: your@email.tld
+$ dokku letsencrypt:set myapp email your@email.tld
+=====> Setting email to your@email.tld
 $ dokku letsencrypt:enable myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
@@ -85,7 +85,7 @@ Once the certificate is installed, you can use the `certs:*` built-in commands t
 
 You could also use the following command to set an email address for global. So you don't need to type the email address for different application.
 ```
-dokku config:set --global DOKKU_LETSENCRYPT_EMAIL=your@email.tld
+dokku letsencrypt:set --global email your@email.tld
 ```
 
 ## Automatic certificate renewal
@@ -101,16 +101,16 @@ dokku letsencrypt:cron-job --add
 ```
 
 ## Configuration
-`dokku-letsencrypt` uses the [Dokku environment variable manager](https://dokku.com/docs/configuration/environment-variables/) for all configuration. The important environment variables are:
+`dokku-letsencrypt` uses the [properties manager](https://github.com/dokku/dokku/blob/master/plugins/common/properties.go) for all configuration. The important property variables are:
 
-Variable                        | Default           | Description
---------------------------------|-------------------|-------------------------------------------------------------------------
-`DOKKU_LETSENCRYPT_EMAIL`       | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
-`DOKKU_LETSENCRYPT_GRACEPERIOD` | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
-`DOKKU_LETSENCRYPT_SERVER`      | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
-`DOKKU_LETSENCRYPT_ARGS`        | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
+| Variable      | Default           | Description                                                                                                                                  |
+|---------------|-------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
+| `email`       | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.                                                                      |
+| `graceperiod` | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed                                                                           |
+| `server`      | default           | Which ACME server to use. Can be 'default', 'staging' or a URL                                                                               |
+| `lego-args`   | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options. |
 
-You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
+You can set a setting using `dokku letsecncrypt:set <myapp> <property_name> setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back settings set by `dokku letsencrypt:set --global <property_name> setting_value`.
 
 ## Redirecting from HTTP to HTTPS
 
