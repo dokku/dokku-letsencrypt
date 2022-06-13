@@ -105,7 +105,7 @@ dokku letsencrypt:cron-job --add
 Variable                        | Default           | Description
 --------------------------------|-------------------|-------------------------------------------------------------------------
 `DOKKU_LETSENCRYPT_EMAIL`       | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
-`DOKKU_LETSENCRYPT_GRACEPERIOD` | 5184000 (30 days) | Time in seconds left on a certificate before it should get renewed
+`DOKKU_LETSENCRYPT_GRACEPERIOD` | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
 `DOKKU_LETSENCRYPT_SERVER`      | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 `DOKKU_LETSENCRYPT_ARGS`        | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
 
