@@ -22,13 +22,13 @@ sudo dokku plugin:update letsencrypt
 
 ```
 $ dokku letsencrypt:help
+    letsencrypt:active <app>                Verify if letsencrypt is active for an app
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
     letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
     letsencrypt:disable <app>               Disable letsencrypt for an app
     letsencrypt:enable <app>                Enable or renew letsencrypt for an app
-    letsencrypt:active <app>                Verify if letsencrypt is active for an app
     letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
 ```
@@ -162,7 +162,7 @@ Be aware that Let's Encrypt is subject to [rate limiting](https://letsencrypt.or
 
 As a workaround, if you want to encrypt many applications, make sure to add a proper domain for each one and remove their default domain before running `dokku-letsencrypt`. For example, if your dokku domain is `dokku.example.com` and you want to encrypt your `foo` app:
 
-```
+```sh
 dokku domains:add foo foo.com
 dokku domains:remove foo foo.dokku.example.com
 dokku letsencrypt:enable foo
@@ -174,9 +174,19 @@ While playing around with this plugin, you might want to switch to the let's enc
 
 Your [default dokku app](http://dokku.viewdocs.io/dokku/configuration/domains/#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
 
-```
+```sh
 dokku domains:add 00-default mydomain.com
 dokku letsencrypt:enable 00-default
+```
+
+## Conditional enabling
+
+`dokku letsencrypt:enable <app>` enables letsencrypt for an application or renews the certificate. This may lead to hitting rate limits with letsencrypt.
+
+To avoid renewals, for example in a continuous deployment scenario, you could first check if letsencrypt has already been enabled for the app:
+
+```sh
+dokku letsencrypt:active <app> || dokku letsencrypt:enable <app>
 ```
 
 ## License
