@@ -27,7 +27,7 @@ help_desc
 fn-help-content() {
   declare desc="return help content"
   cat <<help_content
-    letsencrypt:active <app>, Verify letsencrypt is active for an app
+    letsencrypt:active <app>, Verify if letsencrypt is active for an app
     letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>, Remove stale certificate directories for app

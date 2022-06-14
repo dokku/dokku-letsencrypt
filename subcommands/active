@@ -6,7 +6,7 @@ set -eo pipefail
 
 cmd-letsencrypt-active() {
   #shellcheck disable=SC2034
-  declare desc="Check if app is letsencrypt-secured"
+  declare desc="Verify if letsencrypt is active for an app"
   declare cmd="letsencrypt:active"
   [[ "$1" == "$cmd" ]] && shift 1
 
