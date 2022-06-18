@@ -3,6 +3,31 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
+fn-letsencrypt-is-autorenew-enabled() {
+  declare desc="check if autorenew is enabled"
+  local enabled=false
+
+  if [[ -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew" ]]; then
+    enabled=true
+  fi
+
+  echo "$enabled"
+}
+
+fn-letsencrypt-email() {
+  declare desc="get configured email address"
+  declare APP="$1"
+
+  letsencrypt_get_email "$APP"
+}
+
+fn-letsencrypt-expiration() {
+  declare desc="prints expiration time"
+  declare APP="$1"
+
+  letsencrypt_get_expirydate "$APP"
+}
+
 fn-letsencrypt-is-active() {
   declare desc="outputs true if active, false otherwise"
   declare APP="$1"
@@ -13,18 +38,4 @@ fn-letsencrypt-is-active() {
   fi
 
   echo "$active"
-}
-
-fn-letsencrypt-expiration() {
-  declare desc="prints expiration time"
-  declare APP="$1"
-
-  letsencrypt_get_expirydate "$APP"
-}
-
-fn-letsencrypt-email() {
-  declare desc="get configured email address"
-  declare APP="$1"
-
-  letsencrypt_get_email "$APP"
 }
