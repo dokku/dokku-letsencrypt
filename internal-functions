@@ -26,5 +26,5 @@ fn-letsencrypt-email() {
   declare desc="get configured email address"
   declare APP="$1"
 
-  letsencrypt_check_email "$APP"
+  letsencrypt_get_email "$APP"
 }

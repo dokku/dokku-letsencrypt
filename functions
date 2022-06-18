@@ -192,22 +192,31 @@ letsencrypt_configure_and_get_dir() {
   echo "$DOKKU_HOST_ROOT/$app/letsencrypt/certs/$config_hash"
 }
 
+letsencrypt_get_email() {
+  #shellcheck disable=SC2034
+  declare desc="Check if an e-mail address is provided globally or for the app"
+  declare APP="$1"
+
+  eval "$(config_export global)"
+  if [[ -n "$DOKKU_LETSENCRYPT_EMAIL" ]]; then
+    echo "$DOKKU_LETSENCRYPT_EMAIL"
+    return
+  fi
+
+  eval "$(config_export app "$APP")"
+  echo "$DOKKU_LETSENCRYPT_EMAIL"
+}
+
 letsencrypt_check_email() {
   #shellcheck disable=SC2034
   declare desc="Check if an e-mail address is provided globally or for the app"
-
-  local app="$1"
-
-  eval "$(config_export global)"
-  eval "$(config_export app "$app")"
-
-  local email="$DOKKU_LETSENCRYPT_EMAIL"
+  declare APP="$1"
 
   # check we have a valid e-mail address
-  if [[ -z "$email" ]]; then
+  if [[ -z "$(letsencrypt_get_email "$APP")" ]]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku config:set --no-restart $app DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
+    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
     return 1
   fi
 }
