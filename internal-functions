@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+source "$PLUGIN_CORE_AVAILABLE_PATH/letsencrypt/functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+fn-letsencrypt-is-active() {
+  declare desc="outputs true if active, false otherwise"
+  declare APP="$1"
+  local active=false
+
+  if [[ "$(letsencrypt_is_active "$APP" || true)" == "$APP" ]]; then
+    active=true
+  fi
+
+  echo "$active"
+}
+
+fn-letsencrypt-expiration() {
+  declare desc="prints expiration time"
+  declare APP="$1"
+
+  letsencrypt_get_expirydate "$APP"
+}
+
+fn-letsencrypt-email() {
+  declare desc="get configured email address"
+  declare APP="$1"
+
+  letsencrypt_check_email "$APP"
+}

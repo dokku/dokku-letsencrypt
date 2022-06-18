@@ -204,7 +204,7 @@ letsencrypt_check_email() {
   local email="$DOKKU_LETSENCRYPT_EMAIL"
 
   # check we have a valid e-mail address
-  if [ -z "$email" ]; then
+  if [[ -z "$email" ]]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
     dokku_log_warn "  dokku config:set --no-restart $app DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
