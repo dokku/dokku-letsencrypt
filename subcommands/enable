@@ -73,7 +73,6 @@ letsencrypt_acme() {
   declare desc="perform actual ACME validation procedure"
   declare app="$1" acme_port="$2"
   local FAKE_NGINX_CONF=false
-  local config_dir
 
   if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
     FAKE_NGINX_CONF=true
@@ -84,10 +83,10 @@ letsencrypt_acme() {
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
-  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
-  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
-  read -r -a config <"$container_config_dir/config"
+  local config_dir=$(letsencrypt_configure_and_get_dir "$app" "$acme_port")
+  local config_dir_in_pod="/mnt/dokku/home/dokku/$config_dir"
+  local config_dir_on_host="$DOKKU_HOST_ROOT/$config_dir"
+  read -r -a config <"$config_dir_in_pod/config"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
@@ -95,9 +94,10 @@ letsencrypt_acme() {
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
   docker run --rm \
+    "$PERMISSIONS_CALLS" \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
-    -v "$host_config_dir:/certs" \
+    -v "$config_dir_on_host:/certs" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" run | sed "s/^/       /"
 

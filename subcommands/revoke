@@ -17,20 +17,22 @@ letsencrypt_acme_revoke() {
   local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
-  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
-  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
-  read -r -a config <"$container_config_dir/config"
+  local config_dir=$(letsencrypt_configure_and_get_dir "$app" "$acme_port")
+  local config_dir_in_pod="/mnt/dokku/home/dokku/$config_dir"
+  local config_dir_on_host="$DOKKU_HOST_ROOT/$config_dir"
+  read -r -a config <"$config_dir_in_pod/config"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
+
   docker run --rm \
+    "$PERMISSIONS_CALLS" \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
-    -v "$host_config_dir:/certs" \
+    -v "$config_dir_on_host:/certs" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" revoke | sed "s/^/       /"
 
