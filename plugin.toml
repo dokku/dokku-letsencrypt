@@ -1,4 +1,4 @@
 [plugin]
 description = "Automated installation of let's encrypt TLS certificates"
-version = "0.16.3"
+version = "0.17.0"
 [plugin.config]
