@@ -115,7 +115,7 @@ letsencrypt_acme() {
 
   # got certificate
   dokku_log_info1 "Certificate retrieved successfully."
-  letsencrypt_link "$app" "$config_dir"
+  letsencrypt_link "$app" "$container_config_dir"
   nginx_build_config "$app"
 }
 
