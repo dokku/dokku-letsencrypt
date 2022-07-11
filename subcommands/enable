@@ -84,10 +84,8 @@ letsencrypt_acme() {
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
-  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
-  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
-  read -r -a config <"$container_config_dir/config"
+  config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
+  read -r -a config <"$config_dir/config"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
@@ -97,7 +95,7 @@ letsencrypt_acme() {
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
-    -v "$host_config_dir:/certs" \
+    -v "$config_dir:/certs" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" run | sed "s/^/       /"
 
