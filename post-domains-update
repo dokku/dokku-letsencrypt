@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
@@ -8,7 +9,7 @@ trigger-letsencrypt-post-domains-update() {
   declare APP="$1" ACTION="$2"
 
   if [[ "$ACTION" == "add" ]] || [[ "$ACTION" == "set" ]]; then
-    dokku letsencrypt:enable "$APP"
+    dokku_log_warn "Please run dokku letsencrypt:enable to add https support to the new domain"
   fi
 }
 
