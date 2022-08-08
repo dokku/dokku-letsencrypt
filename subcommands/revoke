@@ -17,8 +17,10 @@ letsencrypt_acme_revoke() {
   local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
-  local config_dir="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
-  read -r -a config <"$config_dir/config"
+  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
+  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
+  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
+  read -r -a config <"$container_config_dir/config"
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
@@ -28,7 +30,7 @@ letsencrypt_acme_revoke() {
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
-    -v "$config_dir:/certs" \
+    -v "$host_config_dir:/certs" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" revoke | sed "s/^/       /"
 
@@ -48,11 +50,11 @@ letsencrypt_acme_revoke() {
   local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
 
   # move revoked certificates away
-  mv -f "$config_dir/certificates/$domain.crt" "$config_dir/certificates/$domain.crt.revoked"
-  mv -f "$config_dir/certificates/$domain.issuer.crt" "$config_dir/certificates/$domain.issuer.crt"
-  mv -f "$config_dir/certificates/$domain.key" "$config_dir/certificates/$domain.key"
-  mv -f "$config_dir/certificates/$domain.key" "$config_dir/certificates/$domain.key"
-  mv -f "$config_dir/certificates/$domain.pem" "$config_dir/certificates/key.pem.revoked"
+  mv -f "$container_config_dir/certificates/$domain.crt" "$container_config_dir/certificates/$domain.crt.revoked"
+  mv -f "$container_config_dir/certificates/$domain.issuer.crt" "$container_config_dir/certificates/$domain.issuer.crt"
+  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
+  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
+  mv -f "$container_config_dir/certificates/$domain.pem" "$container_config_dir/certificates/key.pem.revoked"
 
   # removing the certificate will automatically reconfigure nginx
   if [[ -z $DOKKU_APP_NAME ]]; then

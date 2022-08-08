@@ -188,8 +188,9 @@ letsencrypt_configure_and_get_dir() {
   # store config settings
   echo "--http.port :$acme_port $config" >"$config_dir/config"
 
-  # re-implement entire path to respect mapped DOKKU_ROOT when running in a container
-  echo "$DOKKU_HOST_ROOT/$app/letsencrypt/certs/$config_hash"
+  # send both host and container path
+  # to respect mapped DOKKU_ROOT when running in a container
+  echo "$DOKKU_HOST_ROOT/$app/letsencrypt/certs/$config_hash:$config_dir"
 }
 
 letsencrypt_get_email() {
