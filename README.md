@@ -101,7 +101,7 @@ dokku letsencrypt:cron-job --add
 ```
 
 ## Configuration
-`dokku-letsencrypt` uses the [Dokku environment variable manager](http://dokku.viewdocs.io/dokku/configuration-management/) for all configuration. The important environment variables are:
+`dokku-letsencrypt` uses the [Dokku environment variable manager](https://dokku.com/docs/configuration/environment-variables/) for all configuration. The important environment variables are:
 
 Variable                        | Default           | Description
 --------------------------------|-------------------|-------------------------------------------------------------------------
@@ -116,7 +116,7 @@ You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=
 
 Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.
 
-You can [customize the nginx template](http://dokku.viewdocs.io/dokku/configuration/nginx/) if you want different behaviour.
+You can [customize the nginx template](https://dokku.com/docs/networking/proxies/nginx/) if you want different behaviour.
 
 ## Design
 
@@ -131,7 +131,7 @@ For a more in-depth explanation, see [this blog post](https://blog.semicolonsoft
 
 ## Dockerfile Deploys
 
-When securing Dockerfile deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](http://dokku.viewdocs.io/dokku/advanced-usage/proxy-management/#proxy-port-mapping).
+When securing Dockerfile deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](https://dokku.com/docs/networking/proxy-management/#proxy-port-mapping).
 
 For Dockerfile deploys, by default, dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
 
@@ -172,7 +172,7 @@ While playing around with this plugin, you might want to switch to the let's enc
 
 ## Generating a Cert for multiple domains
 
-Your [default dokku app](http://dokku.viewdocs.io/dokku/configuration/domains/#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
+Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
 
 ```sh
 dokku domains:add 00-default mydomain.com
