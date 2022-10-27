@@ -187,7 +187,7 @@ letsencrypt_configure_and_get_dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server=$(fn-plugin-property-get "letsencrypt" "$app" "server" "default")
+  local server=$(letsencrypt_get_property "$app" "server" "default")
   if [ -z "$server" ] || [ "$server" == "default" ]; then
     server="https://acme-v02.api.letsencrypt.org/directory"
   elif [ "$server" == "staging" ]; then
@@ -203,7 +203,7 @@ letsencrypt_configure_and_get_dir() {
   done
 
   local graceperiod=$(letsencrypt_get_graceperiod "$app")
-  local extra_args="$(letsencrypt_get_property "$app" "$email" "")"
+  local extra_args="$(letsencrypt_get_property "$app" "lego-args" "")"
   local email=$(letsencrypt_get_email "$app")
   local config="--pem --http --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
