@@ -7,6 +7,151 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
+fn-letsencrypt-acme-execute-challenge() {
+  declare desc="perform actual ACME validation procedure"
+  declare app="$1"
+  local FAKE_NGINX_CONF=false
+  local config_dir
+
+  if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
+    FAKE_NGINX_CONF=true
+  fi
+
+  fn-letsencrypt-create-root "$app"
+
+  dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
+
+  # read arguments from appropriate config file into the config array
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
+  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
+  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
+  read -r -a config <"$container_config_dir/config"
+
+  # run letsencrypt as a docker container using "certonly" mode
+  # port 80 of the standalone webserver will be forwarded by the proxy
+  set +e
+  export DOKKU_UID=$(id -u)
+  export DOKKU_GID=$(id -g)
+  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
+  docker run --rm \
+    --user $DOKKU_UID:$DOKKU_GID \
+    -v "$host_config_dir:/certs" \
+    -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
+    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
+    "${config[@]}" run | sed "s/^/       /"
+
+  local exit_code=$?
+  set -e
+
+  if [[ "$FAKE_NGINX_CONF" == "true" ]]; then
+    rm "$DOKKU_ROOT/$app/nginx.conf"
+  fi
+
+  if [[ $exit_code != 0 ]]; then
+    dokku_log_info1 "Certificate retrieval failed!"
+    return $exit_code
+  fi
+
+  # got certificate
+  dokku_log_info1 "Certificate retrieved successfully."
+  fn-letsencrypt-symlink-certs "$app" "$container_config_dir"
+  plugn trigger proxy-build-config "$app"
+}
+
+fn-letsencrypt-acme-revoke() {
+  declare desc="perform actual certificate revocation"
+  local app="$1"
+
+  fn-letsencrypt-create-root "$app"
+
+  dokku_log_info1 "Revoking letsencrypt certificate for ${app}..."
+  local acme_port=$(get_available_port)
+
+  # read arguments from appropriate config file into the config array
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
+  host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
+  container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
+  read -r -a config <"$container_config_dir/config"
+
+  # run letsencrypt as a docker container using "certonly" mode
+  # port 80 of the standalone webserver will be forwarded by the proxy
+  set +e
+  export DOKKU_UID=$(id -u)
+  export DOKKU_GID=$(id -g)
+  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
+  docker run --rm \
+    --user $DOKKU_UID:$DOKKU_GID \
+    -p "$acme_port:$acme_port" \
+    -v "$host_config_dir:/certs" \
+    -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
+    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
+    "${config[@]}" revoke | sed "s/^/       /"
+
+  local exit_code=$?
+  set -e
+
+  # handle return codes
+  if [[ $exit_code == 0 ]]; then
+    # certificate revoked
+    dokku_log_info1 "Certificate revoked successfully."
+  else
+    # error - don't try to link certificates
+    dokku_log_info1 "Certificate revocation failed (code $simple_result)!"
+    return
+  fi
+
+  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+
+  # move revoked certificates away
+  mv -f "$container_config_dir/certificates/$domain.crt" "$container_config_dir/certificates/$domain.crt.revoked"
+  mv -f "$container_config_dir/certificates/$domain.issuer.crt" "$container_config_dir/certificates/$domain.issuer.crt"
+  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
+  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
+  mv -f "$container_config_dir/certificates/$domain.pem" "$container_config_dir/certificates/key.pem.revoked"
+
+  # removing the certificate will automatically reconfigure nginx
+  if [[ -z $DOKKU_APP_NAME ]]; then
+    dokku certs:remove "$app"
+  else
+    dokku certs:remove
+  fi
+}
+
+fn-letsencrypt-acme-proxy-disable() {
+  declare desc="disable ACME proxy for an app"
+  local app="$1"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local app_config_dir="$app_root/nginx.conf.d"
+
+  dokku_log_info1 "Disabling ACME proxy for $app..."
+
+  [[ -f "$app_config_dir/letsencrypt.conf" ]] && rm "$app_config_dir/letsencrypt.conf"
+
+  restart_nginx | sed "s/^/       /"
+}
+
+fn-letsencrypt-acme-proxy-enable() {
+  declare desc="enable ACME proxy for an app"
+  local app="$1"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local app_config_dir="$app_root/nginx.conf.d"
+
+  dokku_log_info1 "Enabling ACME proxy for ${app}..."
+
+  # ensure the nginx.conf.d directory exists
+  [[ -d "$app_config_dir" ]] || mkdir "$app_config_dir"
+
+  # generate letsencrypt config
+  sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/letsencrypt.conf.sigil" \
+    APP="$app" \
+    DOKKU_LIB_ROOT="$DOKKU_LIB_ROOT" \
+    >"$app_config_dir/letsencrypt.conf"
+
+  restart_nginx | sed "s/^/       /"
+}
+
 fn-letsencrypt-check-email() {
   declare desc="Check if an e-mail address is provided globally or for the app"
   declare APP="$1"
@@ -68,8 +213,44 @@ fn-letsencrypt-configure-and-get-dir() {
   echo "$DOKKU_HOST_ROOT/$APP/letsencrypt/certs/$config_hash:$config_dir"
 }
 
+fn-letsencrypt-cron-job-enabled() {
+  declare desc="Check if the cron plugin is available"
+
+  if [[ ! -f "$PLUGIN_AVAILABLE_PATH/cron/cron-write" ]]; then
+    return 1
+  fi
+}
+
+fn-letsencrypt-cron-job-add() {
+  declare desc="Add auto-renew cronjob to dokku user's crontab"
+
+  touch "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
+  if fn-letsencrypt-cron-job-enabled; then
+    plugn trigger cron-write
+  else
+    crons="$(crontab -l || true)"
+    crons="$(grep -v -F "$LETSENCRYPT_CRON_CMD" <<<"$crons")"
+    printf "%s\n%s" "$crons" "$LETSENCRYPT_CRON_JOB" | crontab -
+  fi
+
+  dokku_log_info1 "Added cron job to dokku's crontab."
+}
+
+fn-letsencrypt-cron-job-remove() {
+  declare desc="Remove auto-renew cronjob from dokku user's crontab"
+
+  rm -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
+  if fn-letsencrypt-cron-job-enabled; then
+    plugn trigger cron-write
+  else
+    crons="$(crontab -l || true)"
+    crons="$(grep -v -F "$LETSENCRYPT_CRON_CMD" <<<"$crons")"
+    printf "%s" "$crons" | crontab -
+  fi
+  dokku_log_info1 "Removed cron job from dokku's crontab."
+}
+
 fn-letsencrypt-create-root() {
-  #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
   declare APP="$1"
 
@@ -118,6 +299,35 @@ fn-letsencrypt-email() {
   echo "$DOKKU_LETSENCRYPT_EMAIL"
 }
 
+fn-lentsencrypt-enable() {
+  declare APP="$1"
+  local EXIT_CODE=0
+  local domain
+
+  verify_app_name "$APP"
+
+  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  if [[ -z "$domain" ]]; then
+    dokku_log_warn "No domains detected for $APP"
+    return 1
+  fi
+
+  dokku_log_info2 "Enabling letsencrypt for $APP"
+
+  fn-letsencrypt-check-email "$APP"
+  fn-letsencrypt-acme-proxy-enable "$APP"
+  fn-letsencrypt-acme-challenge "$APP" || EXIT_CODE=$? # remove ACME proxy even if this fails
+  fn-letsencrypt-acme-proxy-disable "$APP"
+
+  if [[ "$EXIT_CODE" == 0 ]]; then
+    dokku_log_info1 "Done"
+    return
+  fi
+
+  dokku_log_warn "Failed to setup letsencrypt"
+  DOKKU_FAIL_EXIT_CODE="$EXIT_CODE" dokku_log_fail "Check log output for further information on failure"
+}
+
 fn-letsencrypt-expiration() {
   declare desc="prints expiration time"
   declare APP="$1"
@@ -130,7 +340,6 @@ fn-letsencrypt-expiration() {
 }
 
 fn-letsencrypt-format-timediff() {
-  #shellcheck disable=SC2034
   declare desc="format a time difference in seconds into a human-readable string"
   local td="$1"
   local negative_td=0
@@ -213,7 +422,6 @@ fn-letsencrypt-is-active() {
 }
 
 fn-letsencrypt-list-apps-with-expiry() {
-  #shellcheck disable=SC2034
   declare desc="list all letsencrypt-secured apps together with their expiry date"
 
   # prints a tab-separated list of
@@ -233,4 +441,28 @@ fn-letsencrypt-list-apps-with-expiry() {
       echo -e "$APP\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
     fi
   done
+}
+
+fn-letsencrypt-symlink-certs() {
+  declare desc="symlink let's encrypt certificates so they can be found by dokku"
+
+  local app="$1"
+  local config_dir="$2"
+
+  local app_root="$DOKKU_ROOT/$app"
+  local le_root="$app_root/letsencrypt"
+  local domain
+
+  dokku_log_info1 "Installing let's encrypt certificates"
+
+  # link the current config directory to 'current'
+  ln -nsf "$config_dir" "$le_root/certs/current"
+
+  # install the let's encrypt certificate for the app
+  unset DOKKU_APP_NAME
+  domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+  dokku certs:add "$app" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
+  rm -f "$app_root/tls/server.letsencrypt.crt" "$app_root/tls/server.crt"
+  cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.letsencrypt.crt"
+  cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.crt"
 }
