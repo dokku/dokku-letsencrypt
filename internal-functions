@@ -102,13 +102,6 @@ fn-letsencrypt-acme-revoke() {
 
   local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
 
-  # move revoked certificates away
-  mv -f "$container_config_dir/certificates/$domain.crt" "$container_config_dir/certificates/$domain.crt.revoked"
-  mv -f "$container_config_dir/certificates/$domain.issuer.crt" "$container_config_dir/certificates/$domain.issuer.crt"
-  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
-  mv -f "$container_config_dir/certificates/$domain.key" "$container_config_dir/certificates/$domain.key"
-  mv -f "$container_config_dir/certificates/$domain.pem" "$container_config_dir/certificates/key.pem.revoked"
-
   # removing the certificate will automatically reconfigure nginx
   if [[ -z $DOKKU_APP_NAME ]]; then
     dokku certs:remove "$app"
