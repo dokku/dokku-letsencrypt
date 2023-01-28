@@ -250,11 +250,23 @@ fn-letsencrypt-configure-and-get-dir() {
   extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
   config="--pem /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
-  rm -f "$config_dir/docker.env"
-  touch "$config_dir/docker.env"
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
   if [[ -n "$dns_provider" ]]; then
     config="--dns $dns_provider $config"
+  else
+    config="--http --http.webroot $config"
+  fi
+
+  # ensure the permissions are set correctly on anything that may expose api keys
+  chmod 0755 "$config_dir/docker.env"
+
+  config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  config_dir="$le_root/certs/$config_hash"
+  mkdir -p "$config_dir"
+
+  rm -f "$config_dir/docker.env"
+  touch "$config_dir/docker.env"
+  if [[ -n "$dns_provider" ]]; then
     fn-plugin-property-get-all "letsencrypt" "--global" | while read -r line; do
       [[ -n "$line" ]] || continue
       key="$(cut -d" " -f1 <<<"$line")"
@@ -271,16 +283,7 @@ fn-letsencrypt-configure-and-get-dir() {
         echo "$key=$value" >> "$config_dir/docker.env"
       fi
     done
-  else
-    config="--http --http.webroot $config"
   fi
-
-  # ensure the permissions are set correctly on anything that may expose api keys
-  chmod 0755 "$config_dir/docker.env"
-
-  config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
-  config_dir="$le_root/certs/$config_hash"
-  mkdir -p "$config_dir"
 
   # store config settings
   echo "$config" >"$config_dir/config"
