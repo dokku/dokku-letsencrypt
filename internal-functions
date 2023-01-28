@@ -447,7 +447,7 @@ fn-letsencrypt-is-active() {
   local domain
 
   # check if SSL is enabled on per-app level
-  if is_ssl_enabled "$APP"; then
+  if ! is_ssl_enabled "$APP"; then
     echo "false"
     return
   fi
@@ -469,7 +469,7 @@ fn-letsencrypt-is-active() {
     le_sha1=$( (cat "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found")
   fi
 
-  if [[ "$cert_sha1" == "$le_sha1" ]]; then
+  if [[ "$cert_sha1" != "$le_sha1" ]]; then
     echo "false"
     return
   fi
