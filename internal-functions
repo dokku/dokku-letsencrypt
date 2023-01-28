@@ -40,6 +40,7 @@ fn-letsencrypt-acme-execute-challenge() {
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
+    --env-file "$config_dir/docker.env" \
     --user $DOKKU_UID:$DOKKU_GID \
     -v "$host_config_dir:/certs" \
     -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
@@ -92,6 +93,7 @@ fn-letsencrypt-acme-revoke() {
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
+    --env-file "$config_dir/docker.env" \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
@@ -223,7 +225,7 @@ fn-letsencrypt-check-email() {
 fn-letsencrypt-configure-and-get-dir() {
   declare desc="assemble lego command line arguments and create a config hash directory for them"
   declare APP="$1"
-  local config config_dir config_hash dns_provider domain_args domains email extra_args graceperiod server
+  local config config_dir config_hash dns_provider domain_args domains email extra_args graceperiod key server value
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
@@ -248,12 +250,33 @@ fn-letsencrypt-configure-and-get-dir() {
   extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
   config="--pem /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
+  rm -f "$config_dir/docker.env"
+  touch "$config_dir/docker.env"
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
   if [[ -n "$dns_provider" ]]; then
     config="--dns $dns_provider $config"
+    fn-plugin-property-get-all "letsencrypt" "--global" | while read -r line; do
+      [[ -n "$line" ]] || continue
+      key="$(cut -d" " -f1 <<<"$line")"
+      if [[ "$key" == dns-provider-* ]]; then
+        value="$(cut -d" " -f2 <<<"$line")"
+        echo "$key=$value" >> "$config_dir/docker.env"
+      fi
+    done
+    fn-plugin-property-get-all "letsencrypt" "$APP" | while read -r line; do
+      [[ -n "$line" ]] || continue
+      key="$(cut -d" " -f1 <<<"$line")"
+      if [[ "$key" == dns-provider-* ]]; then
+        value="$(cut -d" " -f2 <<<"$line")"
+        echo "$key=$value" >> "$config_dir/docker.env"
+      fi
+    done
   else
     config="--http --http.webroot $config"
   fi
+
+  # ensure the permissions are set correctly on anything that may expose api keys
+  chmod 0755 "$config_dir/docker.env"
 
   config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   config_dir="$le_root/certs/$config_hash"

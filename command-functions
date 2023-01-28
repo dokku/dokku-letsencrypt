@@ -298,8 +298,8 @@ cmd-letsencrypt-set() {
 
   [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
 
-  if ! fn-in-array "$KEY" "${VALID_KEYS[@]}"; then
-    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, email, graceperiod, server, lego-docker-args"
+  if ! fn-in-array "$KEY" "${VALID_KEYS[@]}" && [[ "$KEY" != dns-provider-* ]]; then
+    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, dns-provider-*, email, graceperiod, server, lego-docker-args"
   fi
 
   if [[ -n "$VALUE" ]]; then
