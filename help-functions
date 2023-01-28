@@ -28,8 +28,7 @@ fn-help-content() {
   declare desc="return help content"
   cat <<help_content
     letsencrypt:active <app>, Verify if letsencrypt is active for an app
-    letsencrypt:auto-renew, Auto-renew all apps secured by letsencrypt if renewal is necessary
-    letsencrypt:auto-renew <app>, Auto-renew app if renewal is necessary
+    letsencrypt:auto-renew [<app>], Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:cron-job [--add --remove], Add or remove a cron job that periodically calls auto-renew.
     letsencrypt:disable <app>, Disable letsencrypt for an app
@@ -37,5 +36,6 @@ fn-help-content() {
     letsencrypt:help, Display letsencrypt help
     letsencrypt:list, List letsencrypt-secured apps with certificate expiry times
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
+    letsencrypt:set <app> <property> (<value>), Set or clear a letsencrypt property for an app
 help_content
 }
