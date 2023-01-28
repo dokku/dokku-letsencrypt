@@ -129,13 +129,13 @@ You can [customize the nginx template](https://dokku.com/docs/networking/proxies
 
 For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
 
-## Dockerfile Deploys
+## Dockerfile and Image-based Deploys
 
-When securing Dockerfile deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](https://dokku.com/docs/networking/proxy-management/#proxy-port-mapping).
+When securing Dockerfile and Image-based deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](https://dokku.com/docs/networking/proxy-management/#proxy-port-mapping).
 
-For Dockerfile deploys, by default, dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
+For Dockerfile deploys - as well as those via `git:from-image - Dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
 
-A full workflow for creating a new Dockerfile deployment (where the app is listening on port 5555) with dokku-letsencrypt would be:
+A full workflow for creating a new Dockerfile/Image-based deployment (where the app is listening on port 5555) with dokku-letsencrypt would be:
 
 1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote. This guide assumes that the Docker container will be listening for connections on port 5555 so replace container port numbers accordingly if necessary.
 2. On the dokku host, use `dokku proxy:ports-add myapp http:80:5555` to proxy HTTP port 80 to port 5555 on the Docker image
