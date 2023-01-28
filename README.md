@@ -189,6 +189,8 @@ dokku letsencrypt:enable 00-default
 
 In order to provide a Letsencrypt certificate for a wildcard domain, a DNS-01 challenge must be used. To configure, the `dns-provider` property must be set to a [supported Lego provider](https://go-acme.github.io/lego/dns/). Additionally, the environment variables used by the DNS provider must be set as letsencrypt properties with the prefix `dns-provider-`. Both global and app-specific properties are supported.
 
+> Warning: Before using a DNS-based challenge, ensure all DNS records - including wildcard records - are pointing at your server.
+
 ```shell
 # set the provider to namecheap
 dokku letsencrypt:set --global dns-provider namecheap
@@ -200,7 +202,7 @@ dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_KEY key
 
 Due to limitations in how certain DNS providers work, environment variables _must not_ use the `_FILE` based method for referring to values in files.
 
-Plesae see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
+Please see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
 
 ## Conditional enabling
 
