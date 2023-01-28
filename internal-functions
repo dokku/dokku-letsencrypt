@@ -40,7 +40,7 @@ fn-letsencrypt-acme-execute-challenge() {
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
-    --env-file "$config_dir/docker.env" \
+    --env-file "$host_config_dir/docker.env" \
     --user $DOKKU_UID:$DOKKU_GID \
     -v "$host_config_dir:/certs" \
     -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
@@ -93,7 +93,7 @@ fn-letsencrypt-acme-revoke() {
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
-    --env-file "$config_dir/docker.env" \
+    --env-file "$host_config_dir/docker.env" \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
@@ -257,9 +257,6 @@ fn-letsencrypt-configure-and-get-dir() {
     config="--http --http.webroot $config"
   fi
 
-  # ensure the permissions are set correctly on anything that may expose api keys
-  chmod 0755 "$config_dir/docker.env"
-
   config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   config_dir="$le_root/certs/$config_hash"
   mkdir -p "$config_dir"
@@ -284,6 +281,9 @@ fn-letsencrypt-configure-and-get-dir() {
       fi
     done
   fi
+
+  # ensure the permissions are set correctly on anything that may expose api keys
+  chmod 0755 "$config_dir/docker.env"
 
   # store config settings
   echo "$config" >"$config_dir/config"
