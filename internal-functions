@@ -197,7 +197,7 @@ fn-letsencrypt-configure-and-get-dir() {
 
   eval "$(config_export global)"
   eval "$(config_export app "$APP")"
-  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
+  local graceperiod="$(fn-letsencrypt-graceperiod "$APP")"
   local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$APP" DOKKU_LETSENCRYPT_ARGS || echo '')"
   local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
 
@@ -339,6 +339,13 @@ fn-letsencrypt-expiration() {
   fi
 }
 
+fn-letsencrypt-graceperiod() {
+  declare desc="echos the configured grace period for an app with fallbacks"
+  declare APP="$1"
+
+  config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30))
+}
+
 fn-letsencrypt-format-timediff() {
   declare desc="format a time difference in seconds into a human-readable string"
   local td="$1"
@@ -435,7 +442,7 @@ fn-letsencrypt-list-apps-with-expiry() {
     if [[ "$APP" == "=====>" ]] || [[ "$APP" == "My" ]] || [[ "$APP" == "Apps" ]]; then continue; fi
     if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]]; then
       local expiry=$(fn-letsencrypt-expiration "$APP")
-      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+      local grace_period="$(fn-letsencrypt-graceperiod "$APP")"
       local time_to_expiry=$((expiry - $(date +%s)))
       local time_to_renewal=$((expiry - grace_period - $(date +%s)))
       echo -e "$APP\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
