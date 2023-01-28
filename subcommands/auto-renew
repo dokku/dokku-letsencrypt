@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
@@ -25,7 +25,7 @@ cmd-letsencrypt-auto-renew() {
     # For all apps, sorted by ascending time left until renewal.
     # This way, we'll prioritize apps that need to be renewed soon
     # if we should hit a rate limit along the way.
-    letsencrypt_list_apps_and_expiry \
+    fn-letsencrypt-list-apps-with-expiry \
       | sort -nk5 \
       | while IFS=$'\t' read -r -a appExpiry; do
 
@@ -33,7 +33,7 @@ cmd-letsencrypt-auto-renew() {
           dokku_log_info1 "${appExpiry[0]} needs renewal"
           dokku letsencrypt:enable "${appExpiry[0]}" || EXIT_CODE=$?
         else
-          days_left=$(letsencrypt_format_timediff "${appExpiry[4]}")
+          days_left=$(fn-letsencrypt-format-timediff "${appExpiry[4]}")
           dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
         fi
 
@@ -46,12 +46,12 @@ cmd-letsencrypt-auto-renew() {
   else
     verify_app_name "$APP"
 
-    if ! letsencrypt_is_active "$APP"; then
+    if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]] ; then
       dokku_log_info1 "Letsencrypt not enabled for ${APP}"
       return
     fi
 
-    local expiry=$(letsencrypt_get_expirydate "$APP")
+    local expiry=$(fn-letsencrypt-expiration "$APP")
     local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
     local time_to_renewal=$((expiry - grace_period - $(date +%s)))
 
@@ -59,7 +59,7 @@ cmd-letsencrypt-auto-renew() {
       dokku_log_info2 "Auto-renew ${APP}..."
       dokku letsencrypt:enable "$APP"
     else
-      days_left=$(letsencrypt_format_timediff $time_to_renewal)
+      days_left=$(fn-letsencrypt-format-timediff $time_to_renewal)
       dokku_log_verbose "$APP still has $days_left left before renewal"
     fi
 

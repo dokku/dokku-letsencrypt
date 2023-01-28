@@ -1,7 +1,98 @@
 #!/usr/bin/env bash
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
+
+fn-letsencrypt-check-email() {
+  declare desc="Check if an e-mail address is provided globally or for the app"
+  declare APP="$1"
+
+  # check we have a valid e-mail address
+  if [[ -z "$(fn-letsencrypt-email "$APP")" ]]; then
+    dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
+    dokku_log_warn "  please provide your e-mail address using"
+    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
+    return 1
+  fi
+}
+
+fn-letsencrypt-configure-and-get-dir() {
+  declare desc="assemble lego command line arguments and create a config hash directory for them"
+  declare APP="$1"
+
+  local app_root="$DOKKU_ROOT/$APP"
+  local le_root="$app_root/letsencrypt"
+  mkdir -p "$DOKKU_ROOT/$APP/letsencrypt/account"
+
+  eval "$(config_export global)"
+  eval "$(config_export app "$APP")"
+
+  # build up a string of all certificate-controlling configuration settings.
+  # this will be used to determine the folder name for the account key and certificates
+
+  # get the selected ACME server
+  local server=${DOKKU_LETSENCRYPT_SERVER:-default}
+  if [ -z "$server" ] || [ "$server" == "default" ]; then
+    server="https://acme-v02.api.letsencrypt.org/directory"
+  elif [ "$server" == "staging" ]; then
+    server="https://acme-staging-v02.api.letsencrypt.org/directory"
+  fi
+
+  # construct domain arguments
+  local domains="$(get_app_domains "$APP")"
+  local domain_args=''
+  for domain in $domains; do
+    dokku_log_verbose " - Domain '$domain'" >&2
+    domain_args="$domain_args --domains $domain"
+  done
+
+  eval "$(config_export global)"
+  eval "$(config_export app "$APP")"
+  local graceperiod="${DOKKU_LETSENCRYPT_GRACEPERIOD:-$((60 * 60 * 24 * 30))}"
+  local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$APP" DOKKU_LETSENCRYPT_ARGS || echo '')"
+  local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
+
+  local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  local config_dir="$le_root/certs/$config_hash"
+  mkdir -p "$config_dir"
+
+  # store config settings
+  echo "$config" >"$config_dir/config"
+
+  # send both host and container path
+  # to respect mapped DOKKU_ROOT when running in a container
+  echo "$DOKKU_HOST_ROOT/$APP/letsencrypt/certs/$config_hash:$config_dir"
+}
+
+
+fn-letsencrypt-create-root() {
+  #shellcheck disable=SC2034
+  declare desc="Ensure the let's encrypt root directory exists"
+  declare APP="$1"
+
+  local app_root="$DOKKU_ROOT/$APP"
+  local le_root="$app_root/letsencrypt"
+
+  mkdir -p "$le_root"
+
+  if [[ ! -f "$DOKKU_ROOT/$APP/nginx.conf" ]]; then
+    dokku_log_info1 "Setting temporary site"
+    local NGINX_ACCESS_LOG_FORMAT="$(fn-nginx-access-log-format "$APP")"
+    local NGINX_ACCESS_LOG_PATH="$(fn-nginx-access-log-path "$APP")"
+    local NGINX_ERROR_LOG_PATH="$(fn-nginx-error-log-path "$APP")"
+
+    sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/default-nginx.conf.sigil" \
+      DOMAINS="$(get_app_domains "$APP" | xargs)" DOKKU_ROOT="$DOKKU_ROOT" APP="$APP" \
+      NGINX_ACCESS_LOG_FORMAT="$NGINX_ACCESS_LOG_FORMAT" NGINX_ACCESS_LOG_PATH="$NGINX_ACCESS_LOG_PATH" \
+      NGINX_ERROR_LOG_PATH="$NGINX_ERROR_LOG_PATH" \
+      >"$DOKKU_ROOT/$APP/nginx.conf"
+    restart_nginx | sed "s/^/       /"
+  fi
+}
 
 fn-letsencrypt-is-autorenew-enabled() {
   declare desc="check if autorenew is enabled"
@@ -18,24 +109,129 @@ fn-letsencrypt-email() {
   declare desc="get configured email address"
   declare APP="$1"
 
-  letsencrypt_get_email "$APP"
+  eval "$(config_export global)"
+  if [[ -n "$DOKKU_LETSENCRYPT_EMAIL" ]]; then
+    echo "$DOKKU_LETSENCRYPT_EMAIL"
+    return
+  fi
+
+  eval "$(config_export app "$APP")"
+  echo "$DOKKU_LETSENCRYPT_EMAIL"
 }
 
 fn-letsencrypt-expiration() {
   declare desc="prints expiration time"
   declare APP="$1"
 
-  letsencrypt_get_expirydate "$APP"
+  if [[ -f "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" ]]; then
+    date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  else
+    date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$APP/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
+  fi
+}
+
+fn-letsencrypt-format-timediff() {
+  #shellcheck disable=SC2034
+  declare desc="format a time difference in seconds into a human-readable string"
+  local td="$1"
+  local negative_td=0
+
+  if [ "$td" -lt 0 ]; then
+    negative_td=1
+    td=$((-td))
+  fi
+
+  local days=$((td / (24 * 60 * 60)))
+  td=$((td % (24 * 60 * 60)))
+
+  local hours=$((td / (60 * 60)))
+  td=$((td % (60 * 60)))
+
+  local minutes=$((td / 60))
+  local secs=$((td % 60))
+
+  local res=""
+  if [ $days -gt 0 ]; then
+    res="${days}d, "
+  fi
+
+  if [ $hours -gt 0 ]; then
+    res="${res}${hours}h, "
+  fi
+
+  if [ $minutes -gt 0 ]; then
+    res="${res}${minutes}m, "
+  fi
+
+  if [ $secs -gt 0 ]; then
+    res="${res}${secs}s, "
+  fi
+
+  # remove trailing comma
+  res="$(echo "$res" | sed -re 's/, ?$//g')"
+
+  if [[ $negative_td == 1 ]]; then
+    res="${res} ago"
+  fi
+
+  echo "$res"
 }
 
 fn-letsencrypt-is-active() {
   declare desc="outputs true if active, false otherwise"
-  declare APP="$1"
-  local active=false
+  declare APP=$1
+  local domain
 
-  if [[ "$(letsencrypt_is_active "$APP" || true)" == "$APP" ]]; then
-    active=true
+  # check if SSL is enabled on per-app level
+  if is_ssl_enabled "$APP"; then
+    echo "false"
+    return
   fi
 
-  echo "$active"
+  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+
+  # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
+  local cert_sha1
+  if [[ -f "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" ]]; then
+    cert_sha1=$( (cat "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" 2>/dev/null) | sha1sum || echo "not_found")
+  else
+    cert_sha1=$( (cat "$DOKKU_ROOT/$APP/tls/server.crt" 2>/dev/null) | sha1sum || echo "not_found")
+  fi
+
+  local le_sha1="not_found"
+  if [[ -f "$DOKKU_ROOT/$APP/letsencrypt/certs/current/certificates/$domain.pem" ]]; then
+    le_sha1=$( (cat "$DOKKU_ROOT/$APP/letsencrypt/certs/current/certificates/$domain.crt" 2>/dev/null) | sha1sum || echo "not_found")
+  elif [[ -f "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" ]]; then
+    le_sha1=$( (cat "$DOKKU_ROOT/$APP/letsencrypt/certs/current/fullchain.pem" 2>/dev/null) | sha1sum || echo "not_found")
+  fi
+
+  if [[ "$cert_sha1" == "$le_sha1" ]]; then
+    echo "false"
+    return
+  fi
+
+  echo "true"
+}
+
+fn-letsencrypt-list-apps-with-expiry() {
+  #shellcheck disable=SC2034
+  declare desc="list all letsencrypt-secured apps together with their expiry date"
+
+  # prints a tab-separated list of
+  #  * app name
+  #  * expiry dates as UNIX timestamp (seconds since epoch)
+  #  * selected renewal grace period (in seconds)
+  #  * time left on certificate (in seconds)
+  #  * time until renewal (in seconds)
+
+  for APP in $(dokku_apps); do
+    if [[ "$APP" == "=====>" ]] || [[ "$APP" == "My" ]] || [[ "$APP" == "Apps" ]]; then continue; fi
+    if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]] ; then
+      local expiry=$(fn-letsencrypt-expiration "$APP")
+      local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
+      local time_to_expiry=$((expiry - $(date +%s)))
+      local time_to_renewal=$((expiry - grace_period - $(date +%s)))
+      echo -e "$APP\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
+    fi
+  done
 }

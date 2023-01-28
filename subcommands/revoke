@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
@@ -11,13 +11,13 @@ letsencrypt_acme_revoke() {
   declare desc="perform actual certificate revocation"
   local app="$1"
 
-  letsencrypt_create_root "$app"
+  fn-letsencrypt-create-root "$app"
 
   dokku_log_info1 "Revoking letsencrypt certificate for ${app}..."
   local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
@@ -83,7 +83,7 @@ cmd-letsencrypt-revoke() {
 
   dokku_log_info2 "Revoke letsencrypt certificate from ${APP}..."
 
-  letsencrypt_check_email "$APP"
+  fn-letsencrypt-check-email "$APP"
   letsencrypt_acme_revoke "$APP" || true
 
   dokku_log_verbose "done"

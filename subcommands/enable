@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
@@ -10,7 +10,6 @@ letsencrypt_acmeproxy_on() {
   #shellcheck disable=SC2034
   declare desc="enable ACME proxy for an app"
   local app="$1"
-  local acme_port="$2"
 
   local app_root="$DOKKU_ROOT/$app"
   local app_config_dir="$app_root/nginx.conf.d"
@@ -20,7 +19,7 @@ letsencrypt_acmeproxy_on() {
   # ensure the nginx.conf.d directory exists
   [[ -d "$app_config_dir" ]] || mkdir "$app_config_dir"
 
-  # insert acme_port into config template, place resulting config in nginx.conf.d
+  # generate letsencrypt config
   sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/letsencrypt.conf.sigil" \
     APP="$app" \
     DOKKU_LIB_ROOT="$DOKKU_LIB_ROOT" \
@@ -72,7 +71,7 @@ letsencrypt_link() {
 letsencrypt_acme() {
   #shellcheck disable=SC2034
   declare desc="perform actual ACME validation procedure"
-  declare app="$1" acme_port="$2"
+  declare app="$1"
   local FAKE_NGINX_CONF=false
   local config_dir
 
@@ -80,12 +79,12 @@ letsencrypt_acme() {
     FAKE_NGINX_CONF=true
   fi
 
-  letsencrypt_create_root "$app"
+  fn-letsencrypt-create-root "$app"
 
   dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(letsencrypt_configure_and_get_dir "$app" "$acme_port")"
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
@@ -98,7 +97,6 @@ letsencrypt_acme() {
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
-    -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
     -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
@@ -125,7 +123,7 @@ letsencrypt_acme() {
 fn-lentsencrypt-enable() {
   declare APP="$1"
   local EXIT_CODE=0
-  local acme_port domain
+  local domain
 
   verify_app_name "$APP"
 
@@ -137,13 +135,10 @@ fn-lentsencrypt-enable() {
 
   dokku_log_info2 "Enabling letsencrypt for $APP"
 
-  # dynamically choose a port for the letsencrypt standalone authenticator
-  acme_port=$(get_available_port)
+  fn-letsencrypt-check-email "$APP"
 
-  letsencrypt_check_email "$APP"
-
-  letsencrypt_acmeproxy_on "$APP" "$acme_port"
-  letsencrypt_acme "$APP" "$acme_port" || EXIT_CODE=$? # remove ACME proxy even if this fails
+  letsencrypt_acmeproxy_on "$APP"
+  letsencrypt_acme "$APP" || EXIT_CODE=$? # remove ACME proxy even if this fails
   letsencrypt_acmeproxy_off "$APP"
 
   if [[ "$EXIT_CODE" == 0 ]]; then

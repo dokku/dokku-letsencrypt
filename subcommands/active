@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
@@ -18,7 +18,7 @@ cmd-letsencrypt-active() {
   declare APP="$1"
 
   verify_app_name "$APP"
-  letsencrypt_is_active "$APP"
+  fn-letsencrypt-is-active "$APP"
 }
 
 cmd-letsencrypt-active "$@"

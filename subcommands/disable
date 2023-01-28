@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
