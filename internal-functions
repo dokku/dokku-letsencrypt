@@ -151,17 +151,29 @@ fn-letsencrypt-acme-proxy-enable() {
   restart_nginx | sed "s/^/       /"
 }
 
-fn-letsencrypt-lego-docker-args() {
-  declare desc="get configured lego args"
+fn-letsencrypt-computed-lego-docker-args() {
+  declare desc="get configured lego docker args"
   declare APP="$1"
-  local value
 
-  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-args" "")"
+  value="$(fn-letsencrypt-lego-docker-args "$APP")"
   if [[ -z "$value" ]]; then
-    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-args" "true")"
+    value="$(fn-letsencrypt-global-lego-docker-args)"
   fi
 
   echo "$value"
+}
+
+fn-letsencrypt-global-lego-docker-args() {
+  declare desc="get configured lego docker args"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-args" ""
+}
+
+fn-letsencrypt-lego-docker-args() {
+  declare desc="get configured lego docker args"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-args" ""
 }
 
 fn-letsencrypt-check-email() {
@@ -169,7 +181,7 @@ fn-letsencrypt-check-email() {
   declare APP="$1"
 
   # check we have a valid e-mail address
-  if [[ -z "$(fn-letsencrypt-email "$APP")" ]]; then
+  if [[ -z "$(fn-letsencrypt-computed-email "$APP")" ]]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
     dokku_log_warn "  dokku letsencrypt:set $APP email <e-mail>"
@@ -189,7 +201,7 @@ fn-letsencrypt-configure-and-get-dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server="$(fn-letsencrypt-server "$APP")"
+  local server="$(fn-letsencrypt-computed-server "$APP")"
 
   # construct domain arguments
   local domains="$(get_app_domains "$APP")"
@@ -199,9 +211,9 @@ fn-letsencrypt-configure-and-get-dir() {
     domain_args="$domain_args --domains $domain"
   done
 
-  local graceperiod="$(fn-letsencrypt-graceperiod "$APP")"
-  local email="$(fn-letsencrypt-email "$APP")"
-  local extra_args="$(fn-letsencrypt-lego-docker-args "$APP")"
+  local graceperiod="$(fn-letsencrypt-computed-graceperiod "$APP")"
+  local email="$(fn-letsencrypt-computed-email "$APP")"
+  local extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
   local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
@@ -288,17 +300,29 @@ fn-letsencrypt-is-autorenew-enabled() {
   echo "$enabled"
 }
 
-fn-letsencrypt-email() {
+fn-letsencrypt-computed-email() {
   declare desc="get configured email address"
   declare APP="$1"
-  local value
 
-  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "email" "")"
+  value="$(fn-letsencrypt-email "$APP")"
   if [[ -z "$value" ]]; then
-    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "email" "true")"
+    value="$(fn-letsencrypt-global-email)"
   fi
 
   echo "$value"
+}
+
+fn-letsencrypt-global-email() {
+  declare desc="get configured email address"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "email" ""
+}
+
+fn-letsencrypt-email() {
+  declare desc="get configured email address"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "email" ""
 }
 
 fn-lentsencrypt-enable() {
@@ -341,14 +365,14 @@ fn-letsencrypt-expiration() {
   fi
 }
 
-fn-letsencrypt-graceperiod() {
+fn-letsencrypt-computed-graceperiod() {
   declare desc="get configured graceperiod"
   declare APP="$1"
   local value
 
-  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "graceperiod" "")"
+  value="$(fn-letsencrypt-graceperiod "$APP")"
   if [[ -z "$value" ]]; then
-    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "graceperiod" "true")"
+    value="$(fn-letsencrypt-global-graceperiod)"
   fi
 
   if [[ -z "$value" ]]; then
@@ -356,6 +380,19 @@ fn-letsencrypt-graceperiod() {
   fi
 
   echo "$value"
+}
+
+fn-letsencrypt-global-graceperiod() {
+  declare desc="get configured graceperiod"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "graceperiod" ""
+}
+
+fn-letsencrypt-graceperiod() {
+  declare desc="get configured graceperiod"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "graceperiod" ""
 }
 
 fn-letsencrypt-format-timediff() {
@@ -454,7 +491,7 @@ fn-letsencrypt-list-apps-with-expiry() {
     if [[ "$APP" == "=====>" ]] || [[ "$APP" == "My" ]] || [[ "$APP" == "Apps" ]]; then continue; fi
     if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]]; then
       local expiry=$(fn-letsencrypt-expiration "$APP")
-      local grace_period="$(fn-letsencrypt-graceperiod "$APP")"
+      local grace_period="$(fn-letsencrypt-computed-graceperiod "$APP")"
       local time_to_expiry=$((expiry - $(date +%s)))
       local time_to_renewal=$((expiry - grace_period - $(date +%s)))
       echo -e "$APP\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
@@ -462,14 +499,13 @@ fn-letsencrypt-list-apps-with-expiry() {
   done
 }
 
-fn-letsencrypt-server() {
+fn-letsencrypt-computed-server() {
   declare desc="get configured server"
   declare APP="$1"
-  local value
 
-  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "server" "")"
+  value="$(fn-letsencrypt-server "$APP")"
   if [[ -z "$value" ]]; then
-    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "server" "true")"
+    value="$(fn-letsencrypt-global-server)"
   fi
 
   if [[ -z "$value" ]] || [[ "$value" == "default" ]]; then
@@ -479,6 +515,19 @@ fn-letsencrypt-server() {
   fi
 
   echo "$value"
+}
+
+fn-letsencrypt-global-server() {
+  declare desc="get configured server"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "server" ""
+}
+
+fn-letsencrypt-server() {
+  declare desc="get configured server"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "server" ""
 }
 
 fn-letsencrypt-symlink-certs() {

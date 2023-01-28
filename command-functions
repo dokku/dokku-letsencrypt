@@ -65,7 +65,7 @@ cmd-letsencrypt-auto-renew() {
     fi
 
     expiry=$(fn-letsencrypt-expiration "$APP")
-    grace_period=$(fn-letsencrypt-graceperiod "$APP")
+    grace_period=$(fn-letsencrypt-computed-graceperiod "$APP")
     local time_to_renewal=$((expiry - grace_period - $(date +%s)))
 
     if [[ $time_to_renewal -lt 0 ]]; then
@@ -225,8 +225,19 @@ cmd-letsencrypt-report-single() {
   local flag_map=(
     "--letsencrypt-active: $(fn-letsencrypt-is-active "$APP")"
     "--letsencrypt-autorenew: $(fn-letsencrypt-is-autorenew-enabled "$APP")"
+    "--letsencrypt-computed-email: $(fn-letsencrypt-computed-email "$APP")"
+    "--letsencrypt-global-email: $(fn-letsencrypt-global-email)"
     "--letsencrypt-email: $(fn-letsencrypt-email "$APP")"
     "--letsencrypt-expiration: $(fn-letsencrypt-expiration "$APP")"
+    "--letsencrypt-computed-graceperiod: $(fn-letsencrypt-computed-graceperiod "$APP")"
+    "--letsencrypt-global-graceperiod: $(fn-letsencrypt-global-graceperiod)"
+    "--letsencrypt-graceperiod: $(fn-letsencrypt-graceperiod "$APP")"
+    "--letsencrypt-computed-lego-docker-args: $(fn-letsencrypt-computed-lego-docker-args "$APP")"
+    "--letsencrypt-global-lego-docker-args: $(fn-letsencrypt-global-lego-docker-args)"
+    "--letsencrypt-lego-docker-args: $(fn-letsencrypt-lego-docker-args "$APP")"
+    "--letsencrypt-computed-server: $(fn-letsencrypt-computed-server "$APP")"
+    "--letsencrypt-global-server: $(fn-letsencrypt-global-server)"
+    "--letsencrypt-server: $(fn-letsencrypt-server "$APP")"
   )
 
   if [[ -z "$INFO_FLAG" ]]; then
