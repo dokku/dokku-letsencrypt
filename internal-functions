@@ -343,7 +343,7 @@ fn-lentsencrypt-enable() {
 
   fn-letsencrypt-check-email "$APP"
   fn-letsencrypt-acme-proxy-enable "$APP"
-  fn-letsencrypt-acme-challenge "$APP" || EXIT_CODE=$? # remove ACME proxy even if this fails
+  fn-letsencrypt-acme-execute-challenge "$APP" || EXIT_CODE=$? # remove ACME proxy even if this fails
   fn-letsencrypt-acme-proxy-disable "$APP"
 
   if [[ "$EXIT_CODE" == 0 ]]; then
