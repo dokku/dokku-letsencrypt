@@ -248,13 +248,13 @@ fn-letsencrypt-configure-and-get-dir() {
   graceperiod="$(fn-letsencrypt-computed-graceperiod "$APP")"
   email="$(fn-letsencrypt-computed-email "$APP")"
   extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
-  config="--pem /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
+  config="--pem --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
   if [[ -n "$dns_provider" ]]; then
     config="--dns $dns_provider $config"
   else
-    config="--http --http.webroot $config"
+    config="--http --http.webroot /webroot $config"
   fi
 
   config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
