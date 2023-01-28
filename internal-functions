@@ -509,9 +509,9 @@ fn-letsencrypt-computed-server() {
   fi
 
   if [[ -z "$value" ]] || [[ "$value" == "default" ]]; then
-    server="https://acme-v02.api.letsencrypt.org/directory"
+    value="https://acme-v02.api.letsencrypt.org/directory"
   elif [[ "$value" == "staging" ]]; then
-    server="https://acme-staging-v02.api.letsencrypt.org/directory"
+    value="https://acme-staging-v02.api.letsencrypt.org/directory"
   fi
 
   echo "$value"
