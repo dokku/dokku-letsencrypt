@@ -27,10 +27,12 @@ letsencrypt_acme_revoke() {
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
+  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
+    -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" revoke | sed "s/^/       /"
 
