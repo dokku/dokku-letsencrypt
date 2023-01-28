@@ -8,13 +8,13 @@ dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the abili
 
 ## Installation
 
-```sh
+```shell
 sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
 ```
 
 ### Upgrading from previous versions
 
-```sh
+```shell
 sudo dokku plugin:update letsencrypt
 ```
 
@@ -54,9 +54,8 @@ The app which is obtaining a letsencrypt certificate must already be deployed an
 Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
 
 ```
-$ dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_EMAIL=your@email.tld
------> Setting config vars
-       DOKKU_LETSENCRYPT_EMAIL: your@email.tld
+$ dokku letsencrypt:set myapp email your@email.tld
+-----> Setting email to your@email.tld
 $ dokku letsencrypt:enable myapp
 =====> Let's Encrypt myapp...
 -----> Updating letsencrypt docker image...
@@ -84,8 +83,9 @@ Status: Image is up to date for dokku/letsencrypt:latest
 Once the certificate is installed, you can use the `certs:*` built-in commands to edit and query your certificate.
 
 You could also use the following command to set an email address for global. So you don't need to type the email address for different application.
-```
-dokku config:set --global DOKKU_LETSENCRYPT_EMAIL=your@email.tld
+
+```shell
+dokku letsencrypt:set --global email your@email.tld
 ```
 
 ## Automatic certificate renewal
@@ -96,21 +96,22 @@ be renewed.
 
 This can be done using the following command:
 
-```
+```shell
 dokku letsencrypt:cron-job --add
 ```
 
 ## Configuration
+
 `dokku-letsencrypt` uses the [Dokku environment variable manager](https://dokku.com/docs/configuration/environment-variables/) for all configuration. The important environment variables are:
 
-Variable                        | Default           | Description
---------------------------------|-------------------|-------------------------------------------------------------------------
-`DOKKU_LETSENCRYPT_EMAIL`       | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
-`DOKKU_LETSENCRYPT_GRACEPERIOD` | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
-`DOKKU_LETSENCRYPT_SERVER`      | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
-`DOKKU_LETSENCRYPT_ARGS`        | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
+Variable             | Default           | Description
+---------------------|-------------------|-------------------------------------------------------------------------
+`email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
+`graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
+`lego-docker-args`   | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
+`server`             | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 
-You can set a setting using `dokku config:set --no-restart <myapp> SETTING_NAME=setting_value`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
+You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 
 ## Redirecting from HTTP to HTTPS
 
@@ -168,13 +169,13 @@ dokku domains:remove foo foo.dokku.example.com
 dokku letsencrypt:enable foo
 ```
 
-While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku config:set --no-restart myapp DOKKU_LETSENCRYPT_SERVER=staging` to enjoy much higher rate limits and switching back to the real server by running `dokku config:unset --no-restart myapp DOKKU_LETSENCRYPT_SERVER` once you are ready.
+While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku letsencrypt:set myapp server  staging` to enjoy much higher rate limits and switching back to the real server by running `dokku letsencrypt:set myapp server` once you are ready.
 
 ## Generating a Cert for multiple domains
 
 Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
 
-```sh
+```shell
 dokku domains:add 00-default mydomain.com
 dokku letsencrypt:enable 00-default
 ```
@@ -185,7 +186,7 @@ dokku letsencrypt:enable 00-default
 
 To avoid renewals, for example in a continuous deployment scenario, you could first check if letsencrypt has already been enabled for the app:
 
-```sh
+```shell
 dokku letsencrypt:active <app> || dokku letsencrypt:enable <app>
 ```
 

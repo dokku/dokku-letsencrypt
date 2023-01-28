@@ -1,38 +1,6 @@
 #!/usr/bin/env bash
-source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
-source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/config"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/command-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
-
-cmd-letsencrypt-disable() {
-  #shellcheck disable=SC2034
-  declare desc="Disable letsencrypt for an app"
-  declare cmd="letsencrypt:disable"
-  [[ "$1" == "$cmd" ]] && shift 1
-
-  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
-  local argv=("$@")
-  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
-  ##
-
-  declare APP="$1"
-  verify_app_name "$APP"
-
-  dokku_log_info1 "Disabling letsencrypt for app"
-  local le_root="$DOKKU_ROOT/$APP/letsencrypt"
-  local APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
-
-  dokku_log_verbose "Removing letsencrypt files for $APP"
-  rm -rf "$le_root"
-
-  dokku_log_verbose "Removing SSL endpoint from $APP"
-  rm -rf "$APP_SSL_PATH"
-  plugn trigger post-certs-remove "$APP"
-  plugn trigger post-domains-update "$APP"
-
-  dokku_log_verbose "done"
-}
 
 cmd-letsencrypt-disable "$@"

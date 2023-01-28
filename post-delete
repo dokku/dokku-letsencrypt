@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
+set -eo pipefail
+[[ $DOKKU_TRACE ]] && set -x
+
+trigger-letsencrypt-post-delete() {
+  declare desc="destroys the letsencrypt properties for a given app"
+  declare trigger="post-delete"
+  declare APP="$1"
+
+  fn-plugin-property-destroy "letsencrypt" "$APP"
+}
+
+trigger-letsencrypt-post-delete "$@"

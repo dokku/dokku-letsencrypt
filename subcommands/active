@@ -1,24 +1,6 @@
 #!/usr/bin/env bash
-source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
-source "$PLUGIN_AVAILABLE_PATH/letsencrypt/functions"
+source "$PLUGIN_AVAILABLE_PATH/letsencrypt/command-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
-
-cmd-letsencrypt-active() {
-  #shellcheck disable=SC2034
-  declare desc="Verify if letsencrypt is active for an app"
-  declare cmd="letsencrypt:active"
-  [[ "$1" == "$cmd" ]] && shift 1
-
-  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
-  local argv=("$@")
-  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
-  ##
-
-  declare APP="$1"
-
-  verify_app_name "$APP"
-  letsencrypt_is_active "$APP"
-}
 
 cmd-letsencrypt-active "$@"

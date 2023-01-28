@@ -1,10 +1,194 @@
 #!/usr/bin/env bash
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
+
+cmd-letsencrypt-active() {
+  declare desc="Verify if letsencrypt is active for an app"
+  declare cmd="letsencrypt:active"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+
+  verify_app_name "$APP"
+  fn-letsencrypt-is-active "$APP"
+}
+
+cmd-letsencrypt-auto-renew() {
+  declare desc="auto-renew certificates if necessary"
+  declare cmd="letsencrypt:auto-renew"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+  local expiry grace_period
+
+  if [ -z "$APP" ]; then
+    dokku_log_info2 "Auto-renewing all apps..."
+    local EXIT_CODE=0
+
+    # For all apps, sorted by ascending time left until renewal.
+    # This way, we'll prioritize apps that need to be renewed soon
+    # if we should hit a rate limit along the way.
+    fn-letsencrypt-list-apps-with-expiry \
+      | sort -nk5 \
+      | while IFS=$'\t' read -r -a appExpiry; do
+
+        if [[ ${appExpiry[4]} -lt 0 ]]; then
+          dokku_log_info1 "${appExpiry[0]} needs renewal"
+          dokku letsencrypt:enable "${appExpiry[0]}" || EXIT_CODE=$?
+        else
+          days_left=$(fn-letsencrypt-format-timediff "${appExpiry[4]}")
+          dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
+        fi
+
+      done
+
+    dokku_log_info2 "Finished auto-renewal"
+    if [[ "$EXIT_CODE" != 0 ]]; then
+      dokku_log_fail "One or more apps failed to have their certificates renewed"
+    fi
+  else
+    verify_app_name "$APP"
+
+    if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]]; then
+      dokku_log_info1 "Letsencrypt not enabled for ${APP}"
+      return
+    fi
+
+    expiry=$(fn-letsencrypt-expiration "$APP")
+    grace_period=$(fn-letsencrypt-computed-graceperiod "$APP")
+    local time_to_renewal=$((expiry - grace_period - $(date +%s)))
+
+    if [[ $time_to_renewal -lt 0 ]]; then
+      dokku_log_info2 "Auto-renew ${APP}..."
+      dokku letsencrypt:enable "$APP"
+    else
+      days_left=$(fn-letsencrypt-format-timediff $time_to_renewal)
+      dokku_log_verbose "$APP still has $days_left left before renewal"
+    fi
+
+  fi
+}
+
+cmd-letsencrypt-cleanup() {
+  declare desc="clean up unused certificate directories"
+  declare cmd="letsencrypt:cleanup"
+  [[ "$1" == "$cmd" ]] && shift 1
+  local certdir_basename current_config
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+  verify_app_name "$APP"
+
+  local app_root="$DOKKU_ROOT/$APP"
+  local le_root="$app_root/letsencrypt"
+
+  current_config="$(basename "$(readlink "$le_root/certs/current")")"
+
+  if [ -z "$current_config" ] || [[ ! -d "$le_root/certs/$current_config" ]]; then
+    dokku_log_warn "Cannot resolve the 'current' certificate directory!"
+    return 1
+  fi
+
+  dokku_log_info2 "Cleaning up stale certificate directories for $APP"
+  dokku_log_info1 "  - current config hash $current_config"
+
+  for certdir in $le_root/certs/*; do
+    certdir_basename="$(basename "$certdir")"
+
+    if [[ "$certdir_basename" == "current" ]] || [[ "$certdir_basename" == "$current_config" ]]; then continue; fi
+    dokku_log_info1 "  - stale directory $certdir_basename"
+
+    rm -rf "$le_root/certs/$certdir_basename"
+  done
+}
+
+cmd-letsencrypt-cron-job() {
+  declare desc="Add or remove a cron job that periodically calls auto-renew"
+  declare cmd="letsencrypt:cron-job"
+  [[ "$1" == "$cmd" ]] && shift 1
+  declare FLAG="$1"
+
+  if [[ "$FLAG" == "--add" ]]; then
+    fn-letsencrypt-cron-job-add
+  elif [[ "$FLAG" == "--remove" ]]; then
+    fn-letsencrypt-cron-job-remove
+  else
+    dokku_log_verbose "Specify --add or --remove to modify the cron-job"
+  fi
+}
+
+cmd-letsencrypt-disable() {
+  declare desc="Disable letsencrypt for an app"
+  declare cmd="letsencrypt:disable"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+  verify_app_name "$APP"
+
+  dokku_log_info1 "Disabling letsencrypt for app"
+  local le_root="$DOKKU_ROOT/$APP/letsencrypt"
+  local APP_SSL_PATH="$DOKKU_ROOT/$APP/tls"
+
+  dokku_log_verbose "Removing letsencrypt files for $APP"
+  rm -rf "$le_root"
+
+  dokku_log_verbose "Removing SSL endpoint from $APP"
+  rm -rf "$APP_SSL_PATH"
+  plugn trigger post-certs-remove "$APP"
+  plugn trigger post-domains-update "$APP"
+
+  dokku_log_info1 "Done"
+}
+
+cmd-letsencrypt-enable() {
+  declare desc="Enable or renew letsencrypt for an app"
+  declare cmd="letsencrypt:enable"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+  if [[ "$APP" == "--all" ]]; then
+    for app in $(dokku_apps); do
+      fn-lentsencrypt-enable "$app"
+    done
+  else
+    fn-lentsencrypt-enable "$APP"
+  fi
+}
+
+cmd-letsencrypt-list() {
+  declare desc="list letsencrypt-secured apps and certificate expiries"
+  declare cmd="letsencrypt:list"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  dokku_col_log_info1_quiet "App name" "Certificate Expiry" "Time before expiry" "Time before renewal"
+
+  fn-letsencrypt-list-apps-with-expiry \
+    | sort -nk2 \
+    | while IFS=$'\t' read -r -a appExpiry; do
+      expire_date=$(date -d "@${appExpiry[1]}" +"%F %T")
+      expire_time=$(fn-letsencrypt-format-timediff "${appExpiry[3]}")
+      renew_time=$(fn-letsencrypt-format-timediff "${appExpiry[4]}")
+      dokku_col_log_msg "${appExpiry[0]}" "${expire_date}" "${expire_time}" "${renew_time}"
+    done
+}
 
 cmd-letsencrypt-report() {
   declare desc="displays a letsencrypt report for one or more apps"
@@ -41,8 +225,19 @@ cmd-letsencrypt-report-single() {
   local flag_map=(
     "--letsencrypt-active: $(fn-letsencrypt-is-active "$APP")"
     "--letsencrypt-autorenew: $(fn-letsencrypt-is-autorenew-enabled "$APP")"
+    "--letsencrypt-computed-email: $(fn-letsencrypt-computed-email "$APP")"
+    "--letsencrypt-global-email: $(fn-letsencrypt-global-email)"
     "--letsencrypt-email: $(fn-letsencrypt-email "$APP")"
     "--letsencrypt-expiration: $(fn-letsencrypt-expiration "$APP")"
+    "--letsencrypt-computed-graceperiod: $(fn-letsencrypt-computed-graceperiod "$APP")"
+    "--letsencrypt-global-graceperiod: $(fn-letsencrypt-global-graceperiod)"
+    "--letsencrypt-graceperiod: $(fn-letsencrypt-graceperiod "$APP")"
+    "--letsencrypt-computed-lego-docker-args: $(fn-letsencrypt-computed-lego-docker-args "$APP")"
+    "--letsencrypt-global-lego-docker-args: $(fn-letsencrypt-global-lego-docker-args)"
+    "--letsencrypt-lego-docker-args: $(fn-letsencrypt-lego-docker-args "$APP")"
+    "--letsencrypt-computed-server: $(fn-letsencrypt-computed-server "$APP")"
+    "--letsencrypt-global-server: $(fn-letsencrypt-global-server)"
+    "--letsencrypt-server: $(fn-letsencrypt-server "$APP")"
   )
 
   if [[ -z "$INFO_FLAG" ]]; then
@@ -68,5 +263,54 @@ cmd-letsencrypt-report-single() {
     done
     [[ "$match" == "true" ]] || dokku_log_fail "Invalid flag passed, valid flags:${valid_flags}"
     [[ "$value_exists" == "true" ]] || dokku_log_fail "not deployed"
+  fi
+}
+
+cmd-letsencrypt-revoke() {
+  declare desc="Revoke a certificate"
+  declare cmd="letsencrypt:revoke"
+  [[ "$1" == "$cmd" ]] && shift 1
+
+  # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
+  [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
+
+  declare APP="$1"
+  verify_app_name "$APP"
+
+  dokku_log_info2 "Revoke letsencrypt certificate from ${APP}..."
+
+  fn-letsencrypt-check-email "$APP"
+  fn-letsencrypt-acme-revoke "$APP" || true
+
+  dokku_log_info1 "Done"
+}
+
+cmd-letsencrypt-set() {
+  declare desc="set or clear a letsencrypt property for an app"
+  declare cmd="letsencrypt:set"
+  [[ "$1" == "$cmd" ]] && shift 1
+  declare APP="$1" KEY="$2" VALUE="$3"
+  local VALID_KEYS=("email" "graceperiod" "server" "lego-docker-args")
+  [[ "$APP" == "--global" ]] || verify_app_name "$APP"
+
+  [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
+
+  if ! fn-in-array "$KEY" "${VALID_KEYS[@]}"; then
+    dokku_log_fail "Invalid key specified, valid keys include: email, graceperiod, server, lego-docker-args"
+  fi
+
+  if [[ -n "$VALUE" ]]; then
+    dokku_log_info2_quiet "Setting ${KEY} to ${VALUE}"
+    fn-plugin-property-write "letsencrypt" "$APP" "$KEY" "$VALUE"
+  else
+    dokku_log_info2_quiet "Unsetting ${KEY}"
+    if [[ "$KEY" == "rev-env-var" ]]; then
+      fn-plugin-property-write "letsencrypt" "$APP" "$KEY" "$VALUE"
+    else
+      fn-plugin-property-delete "letsencrypt" "$APP" "$KEY"
+      if [[ "$KEY" == "enabled" ]]; then
+        fn-plugin-property-destroy "letsencrypt" "$APP"
+      fi
+    fi
   fi
 }
