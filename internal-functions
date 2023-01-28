@@ -151,14 +151,14 @@ fn-letsencrypt-acme-proxy-enable() {
   restart_nginx | sed "s/^/       /"
 }
 
-fn-letsencrypt-lego-args() {
+fn-letsencrypt-lego-docker-args() {
   declare desc="get configured lego args"
   declare APP="$1"
   local value
 
-  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "lego-args" "")"
+  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-args" "")"
   if [[ -z "$value" ]]; then
-    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "lego-args" "true")"
+    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-args" "true")"
   fi
 
   echo "$value"
@@ -201,7 +201,7 @@ fn-letsencrypt-configure-and-get-dir() {
 
   local graceperiod="$(fn-letsencrypt-graceperiod "$APP")"
   local email="$(fn-letsencrypt-email "$APP")"
-  local extra_args="$(fn-letsencrypt-lego-args "$APP")"
+  local extra_args="$(fn-letsencrypt-lego-docker-args "$APP")"
   local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
