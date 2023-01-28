@@ -12,9 +12,7 @@ cmd-letsencrypt-auto-renew() {
   [[ "$1" == "$cmd" ]] && shift 1
 
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
-  local argv=("$@")
   [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
-  ##
 
   declare APP="$1"
 
