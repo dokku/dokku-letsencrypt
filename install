@@ -1,7 +1,72 @@
 #!/usr/bin/env bash
+source "$PLUGIN_AVAILABLE_PATH/config/functions"
+source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
+
+fn-letsencrypt-migrate-properties() {
+  declare desc="migrates deprecated config variables to property counterpart"
+  local value
+
+  value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_EMAIL" || true)
+  if [[ -n "$value" ]]; then
+    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_EMAIL to letsencrypt email property."
+    fn-plugin-property-write "letsencrypt" "--global" "email" "$value"
+    DOKKU_QUIET_OUTPUT=1 config_unset --global DOKKU_LETSENCRYPT_EMAIL || true
+  fi
+
+  value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_GRACEPERIOD" || true)
+  if [[ -n "$value" ]]; then
+    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_GRACEPERIOD to letsencrypt graceperiod property."
+    fn-plugin-property-write "letsencrypt" "--global" "graceperiod" "$value"
+    DOKKU_QUIET_OUTPUT=1 config_unset --global DOKKU_LETSENCRYPT_GRACEPERIOD || true
+  fi
+
+  value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_ARGS" || true)
+  if [[ -n "$value" ]]; then
+    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-docker-args property."
+    fn-plugin-property-write "letsencrypt" "--global" "lego-docker-args" "$value"
+    DOKKU_QUIET_OUTPUT=1 config_unset --global DOKKU_LETSENCRYPT_ARGS || true
+  fi
+
+  value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_SERVER" || true)
+  if [[ -n "$value" ]]; then
+    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_SERVER to letsencrypt server property."
+    fn-plugin-property-write "letsencrypt" "--global" "server" "$value"
+    DOKKU_QUIET_OUTPUT=1 config_unset --global DOKKU_LETSENCRYPT_SERVER || true
+  fi
+
+  for app in $(dokku_apps "false"); do
+    value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_EMAIL || true)"
+    if [[ -n "$value" ]]; then
+      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_EMAIL to letsencrypt email property for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "email" "$value"
+      DOKKU_QUIET_OUTPUT=1 config_unset --no-restart "$app" "DOKKU_LETSENCRYPT_EMAIL" || true
+    fi
+
+    value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_GRACEPERIOD || true)"
+    if [[ -n "$value" ]]; then
+      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_GRACEPERIOD to letsencrypt graceperiod property for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "graceperiod" "$value"
+      DOKKU_QUIET_OUTPUT=1 config_unset --no-restart "$app" "DOKKU_LETSENCRYPT_GRACEPERIOD" || true
+    fi
+
+    value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_ARGS || true)"
+    if [[ -n "$value" ]]; then
+      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-docker-args property for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "lego-docker-args" "$value"
+      DOKKU_QUIET_OUTPUT=1 config_unset --no-restart "$app" "DOKKU_LETSENCRYPT_ARGS" || true
+    fi
+
+    value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_SERVER || true)"
+    if [[ -n "$value" ]]; then
+      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_SERVER to letsencrypt server property for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "server" "$value"
+      DOKKU_QUIET_OUTPUT=1 config_unset --no-restart "$app" "DOKKU_LETSENCRYPT_SERVER" || true
+    fi
+  done
+}
 
 plugin-install() {
   pull-docker-image() {
@@ -21,6 +86,7 @@ plugin-install() {
   mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt"
   chown -R "${DOKKU_SYSTEM_USER}:${DOKKU_SYSTEM_GROUP}" "${DOKKU_LIB_ROOT}/data/letsencrypt"
   fn-plugin-property-setup "letsencrypt"
+  fn-letsencrypt-migrate-properties
 }
 
 plugin-install "$@"
