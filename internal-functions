@@ -19,7 +19,13 @@ fn-letsencrypt-acme-execute-challenge() {
 
   fn-letsencrypt-create-root "$APP"
 
-  dokku_log_info1 "Getting letsencrypt certificate for ${APP}"
+  challenge_mode="HTTP-01"
+  dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
+  if [[ -n "$dns_provider" ]]; then
+    challenge_mode="DNS-01"
+  fi
+
+  dokku_log_info1 "Getting letsencrypt certificate for ${APP} via ${challenge_mode}"
 
   # read arguments from appropriate config file into the config array
   config_dirs="$(fn-letsencrypt-configure-and-get-dir "$APP")"
@@ -64,7 +70,13 @@ fn-letsencrypt-acme-revoke() {
 
   fn-letsencrypt-create-root "$APP"
 
-  dokku_log_info1 "Revoking letsencrypt certificate for ${APP}"
+  challenge_mode="HTTP-01"
+  dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
+  if [[ -n "$dns_provider" ]]; then
+    challenge_mode="DNS-01"
+  fi
+
+  dokku_log_info1 "Revoking letsencrypt certificate for ${APP} via ${challenge_mode}"
   local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
@@ -145,6 +157,31 @@ fn-letsencrypt-acme-proxy-enable() {
   restart_nginx | sed "s/^/       /"
 }
 
+fn-letsencrypt-computed-dns-provider() {
+  declare desc="get configured dns provider"
+  declare APP="$1"
+
+  value="$(fn-letsencrypt-dns-provider "$APP")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-letsencrypt-global-dns-provider)"
+  fi
+
+  echo "$value"
+}
+
+fn-letsencrypt-global-dns-provider() {
+  declare desc="get configured dns provider"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "dns-provider" ""
+}
+
+fn-letsencrypt-dns-provider() {
+  declare desc="get configured dns provider"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "dns-provider" ""
+}
+
 fn-letsencrypt-computed-lego-docker-args() {
   declare desc="get configured lego docker args"
   declare APP="$1"
@@ -206,13 +243,20 @@ fn-letsencrypt-configure-and-get-dir() {
     domain_args="$domain_args --domains $domain"
   done
 
-  local graceperiod="$(fn-letsencrypt-computed-graceperiod "$APP")"
-  local email="$(fn-letsencrypt-computed-email "$APP")"
-  local extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
-  local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
+  graceperiod="$(fn-letsencrypt-computed-graceperiod "$APP")"
+  email="$(fn-letsencrypt-computed-email "$APP")"
+  extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
+  config="--pem /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
-  local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
-  local config_dir="$le_root/certs/$config_hash"
+  dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
+  if [[ -n "$dns_provider" ]]; then
+    config="--dns $dns_provider $config"
+  else
+    config="--http --http.webroot $config"
+  fi
+
+  config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  config_dir="$le_root/certs/$config_hash"
   mkdir -p "$config_dir"
 
   # store config settings

@@ -106,12 +106,15 @@ dokku letsencrypt:cron-job --add
 
 Variable             | Default           | Description
 ---------------------|-------------------|-------------------------------------------------------------------------
+`dns-provicer`       | (none)            | The name of a [valid lego dns-provider](https://go-acme.github.io/lego/dns/)
 `email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
 `graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
 `lego-docker-args`   | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
 `server`             | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 
 You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
+
+> Note: See "DNS-01 Challenge" for more information on configuration a dns-provider for DNS-01 based challenges and wildcard support.
 
 ## Redirecting from HTTP to HTTPS
 
@@ -179,6 +182,8 @@ Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=defa
 dokku domains:add 00-default mydomain.com
 dokku letsencrypt:enable 00-default
 ```
+
+## DNS-01 Challenge
 
 ## Conditional enabling
 
