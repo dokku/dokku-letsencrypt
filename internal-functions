@@ -9,20 +9,20 @@ set -eo pipefail
 
 fn-letsencrypt-acme-execute-challenge() {
   declare desc="perform actual ACME validation procedure"
-  declare app="$1"
+  declare APP="$1"
   local FAKE_NGINX_CONF=false
-  local config_dir
+  local challenge_mode config_dir
 
-  if [[ ! -f "$DOKKU_ROOT/$app/nginx.conf" ]]; then
+  if [[ ! -f "$DOKKU_ROOT/$APP/nginx.conf" ]]; then
     FAKE_NGINX_CONF=true
   fi
 
-  fn-letsencrypt-create-root "$app"
+  fn-letsencrypt-create-root "$APP"
 
-  dokku_log_info1 "Getting letsencrypt certificate for ${app}..."
+  dokku_log_info1 "Getting letsencrypt certificate for ${APP}"
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$APP")"
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
@@ -44,7 +44,7 @@ fn-letsencrypt-acme-execute-challenge() {
   set -e
 
   if [[ "$FAKE_NGINX_CONF" == "true" ]]; then
-    rm "$DOKKU_ROOT/$app/nginx.conf"
+    rm "$DOKKU_ROOT/$APP/nginx.conf"
   fi
 
   if [[ $exit_code != 0 ]]; then
@@ -54,21 +54,21 @@ fn-letsencrypt-acme-execute-challenge() {
 
   # got certificate
   dokku_log_info1 "Certificate retrieved successfully."
-  fn-letsencrypt-symlink-certs "$app" "$container_config_dir"
-  plugn trigger proxy-build-config "$app"
+  fn-letsencrypt-symlink-certs "$APP" "$container_config_dir"
+  plugn trigger proxy-build-config "$APP"
 }
 
 fn-letsencrypt-acme-revoke() {
   declare desc="perform actual certificate revocation"
-  local app="$1"
+  local APP="$1"
 
-  fn-letsencrypt-create-root "$app"
+  fn-letsencrypt-create-root "$APP"
 
-  dokku_log_info1 "Revoking letsencrypt certificate for ${app}..."
+  dokku_log_info1 "Revoking letsencrypt certificate for ${APP}"
   local acme_port=$(get_available_port)
 
   # read arguments from appropriate config file into the config array
-  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$app")"
+  config_dirs="$(fn-letsencrypt-configure-and-get-dir "$APP")"
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
@@ -100,11 +100,11 @@ fn-letsencrypt-acme-revoke() {
     return
   fi
 
-  local domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
+  local domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
 
   # removing the certificate will automatically reconfigure nginx
   if [[ -z $DOKKU_APP_NAME ]]; then
-    dokku certs:remove "$app"
+    dokku certs:remove "$APP"
   else
     dokku certs:remove
   fi
@@ -112,12 +112,12 @@ fn-letsencrypt-acme-revoke() {
 
 fn-letsencrypt-acme-proxy-disable() {
   declare desc="disable ACME proxy for an app"
-  local app="$1"
+  local APP="$1"
 
-  local app_root="$DOKKU_ROOT/$app"
+  local app_root="$DOKKU_ROOT/$APP"
   local app_config_dir="$app_root/nginx.conf.d"
 
-  dokku_log_info1 "Disabling ACME proxy for $app..."
+  dokku_log_info1 "Disabling ACME proxy for $APP..."
 
   [[ -f "$app_config_dir/letsencrypt.conf" ]] && rm "$app_config_dir/letsencrypt.conf"
 
@@ -126,19 +126,19 @@ fn-letsencrypt-acme-proxy-disable() {
 
 fn-letsencrypt-acme-proxy-enable() {
   declare desc="enable ACME proxy for an app"
-  local app="$1"
+  local APP="$1"
 
-  local app_root="$DOKKU_ROOT/$app"
+  local app_root="$DOKKU_ROOT/$APP"
   local app_config_dir="$app_root/nginx.conf.d"
 
-  dokku_log_info1 "Enabling ACME proxy for ${app}..."
+  dokku_log_info1 "Enabling ACME proxy for ${APP}..."
 
   # ensure the nginx.conf.d directory exists
   [[ -d "$app_config_dir" ]] || mkdir "$app_config_dir"
 
   # generate letsencrypt config
   sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/letsencrypt.conf.sigil" \
-    APP="$app" \
+    APP="$APP" \
     DOKKU_LIB_ROOT="$DOKKU_LIB_ROOT" \
     >"$app_config_dir/letsencrypt.conf"
 
@@ -186,6 +186,7 @@ fn-letsencrypt-check-email() {
 fn-letsencrypt-configure-and-get-dir() {
   declare desc="assemble lego command line arguments and create a config hash directory for them"
   declare APP="$1"
+  local config config_dir config_hash dns_provider domain_args domains email extra_args graceperiod server
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
@@ -195,11 +196,11 @@ fn-letsencrypt-configure-and-get-dir() {
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server="$(fn-letsencrypt-computed-server "$APP")"
+  server="$(fn-letsencrypt-computed-server "$APP")"
 
   # construct domain arguments
-  local domains="$(get_app_domains "$APP")"
-  local domain_args=''
+  domains="$(get_app_domains "$APP")"
+  domain_args=''
   for domain in $domains; do
     dokku_log_verbose " - Domain '$domain'" >&2
     domain_args="$domain_args --domains $domain"
@@ -526,11 +527,9 @@ fn-letsencrypt-server() {
 
 fn-letsencrypt-symlink-certs() {
   declare desc="symlink let's encrypt certificates so they can be found by dokku"
+  declare APP="$1" config_dir="$2"
 
-  local app="$1"
-  local config_dir="$2"
-
-  local app_root="$DOKKU_ROOT/$app"
+  local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
   local domain
 
@@ -541,8 +540,8 @@ fn-letsencrypt-symlink-certs() {
 
   # install the let's encrypt certificate for the app
   unset DOKKU_APP_NAME
-  domain="$(get_app_domains "$app" | xargs | awk '{print $1}')"
-  dokku certs:add "$app" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
+  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  dokku certs:add "$APP" "$config_dir/certificates/$domain.pem" "$config_dir/certificates/$domain.key"
   rm -f "$app_root/tls/server.letsencrypt.crt" "$app_root/tls/server.crt"
   cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.letsencrypt.crt"
   cp "$config_dir/certificates/$domain.crt" "$app_root/tls/server.crt"
