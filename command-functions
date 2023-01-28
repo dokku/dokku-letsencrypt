@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/property-functions"
-source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_AVAILABLE_PATH/letsencrypt/internal-functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
@@ -280,13 +279,13 @@ cmd-letsencrypt-set() {
   declare cmd="letsencrypt:set"
   [[ "$1" == "$cmd" ]] && shift 1
   declare APP="$1" KEY="$2" VALUE="$3"
-  local VALID_KEYS=("email" "graceperiod" "server" "lego-args")
+  local VALID_KEYS=("email" "graceperiod" "server" "lego-docker-args")
   [[ "$APP" == "--global" ]] || verify_app_name "$APP"
 
   [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
 
   if ! fn-in-array "$KEY" "${VALID_KEYS[@]}"; then
-    dokku_log_fail "Invalid key specified, valid keys include: email, graceperiod, server, lego-args"
+    dokku_log_fail "Invalid key specified, valid keys include: email, graceperiod, server, lego-docker-args"
   fi
 
   if [[ -n "$VALUE" ]]; then

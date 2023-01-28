@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
-source "$PLUGIN_CORE_AVAILABLE_PATH/config/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
@@ -152,6 +151,19 @@ fn-letsencrypt-acme-proxy-enable() {
   restart_nginx | sed "s/^/       /"
 }
 
+fn-letsencrypt-lego-args() {
+  declare desc="get configured lego args"
+  declare APP="$1"
+  local value
+
+  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "lego-args" "")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "lego-args" "true")"
+  fi
+
+  echo "$value"
+}
+
 fn-letsencrypt-check-email() {
   declare desc="Check if an e-mail address is provided globally or for the app"
   declare APP="$1"
@@ -160,7 +172,7 @@ fn-letsencrypt-check-email() {
   if [[ -z "$(fn-letsencrypt-email "$APP")" ]]; then
     dokku_log_warn "ERROR: Cannot request a certificate without an e-mail address!"
     dokku_log_warn "  please provide your e-mail address using"
-    dokku_log_warn "  dokku config:set --no-restart $APP DOKKU_LETSENCRYPT_EMAIL=<e-mail>"
+    dokku_log_warn "  dokku letsencrypt:set $APP email <e-mail>"
     return 1
   fi
 }
@@ -173,19 +185,11 @@ fn-letsencrypt-configure-and-get-dir() {
   local le_root="$app_root/letsencrypt"
   mkdir -p "$DOKKU_ROOT/$APP/letsencrypt/account"
 
-  eval "$(config_export global)"
-  eval "$(config_export app "$APP")"
-
   # build up a string of all certificate-controlling configuration settings.
   # this will be used to determine the folder name for the account key and certificates
 
   # get the selected ACME server
-  local server=${DOKKU_LETSENCRYPT_SERVER:-default}
-  if [ -z "$server" ] || [ "$server" == "default" ]; then
-    server="https://acme-v02.api.letsencrypt.org/directory"
-  elif [ "$server" == "staging" ]; then
-    server="https://acme-staging-v02.api.letsencrypt.org/directory"
-  fi
+  local server="$(fn-letsencrypt-server "$APP")"
 
   # construct domain arguments
   local domains="$(get_app_domains "$APP")"
@@ -195,11 +199,10 @@ fn-letsencrypt-configure-and-get-dir() {
     domain_args="$domain_args --domains $domain"
   done
 
-  eval "$(config_export global)"
-  eval "$(config_export app "$APP")"
   local graceperiod="$(fn-letsencrypt-graceperiod "$APP")"
-  local extra_args="$(config_get --global DOKKU_LETSENCRYPT_ARGS || config_get "$APP" DOKKU_LETSENCRYPT_ARGS || echo '')"
-  local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $DOKKU_LETSENCRYPT_EMAIL $extra_args $domain_args"
+  local email="$(fn-letsencrypt-email "$APP")"
+  local extra_args="$(fn-letsencrypt-lego-args "$APP")"
+  local config="--pem --http --http.webroot /webroot --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
 
   local config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
   local config_dir="$le_root/certs/$config_hash"
@@ -288,15 +291,14 @@ fn-letsencrypt-is-autorenew-enabled() {
 fn-letsencrypt-email() {
   declare desc="get configured email address"
   declare APP="$1"
+  local value
 
-  eval "$(config_export global)"
-  if [[ -n "$DOKKU_LETSENCRYPT_EMAIL" ]]; then
-    echo "$DOKKU_LETSENCRYPT_EMAIL"
-    return
+  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "email" "")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "email" "true")"
   fi
 
-  eval "$(config_export app "$APP")"
-  echo "$DOKKU_LETSENCRYPT_EMAIL"
+  echo "$value"
 }
 
 fn-lentsencrypt-enable() {
@@ -340,10 +342,20 @@ fn-letsencrypt-expiration() {
 }
 
 fn-letsencrypt-graceperiod() {
-  declare desc="echos the configured grace period for an app with fallbacks"
+  declare desc="get configured graceperiod"
   declare APP="$1"
+  local value
 
-  config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30))
+  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "graceperiod" "")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "graceperiod" "true")"
+  fi
+
+  if [[ -z "$value" ]]; then
+    value="$((60 * 60 * 24 * 30))"
+  fi
+
+  echo "$value"
 }
 
 fn-letsencrypt-format-timediff() {
@@ -448,6 +460,25 @@ fn-letsencrypt-list-apps-with-expiry() {
       echo -e "$APP\t$expiry\t$grace_period\t$time_to_expiry\t$time_to_renewal"
     fi
   done
+}
+
+fn-letsencrypt-server() {
+  declare desc="get configured server"
+  declare APP="$1"
+  local value
+
+  value="$(fn-plugin-property-get-default "letsencrypt" "$APP" "server" "")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-plugin-property-get-default "letsencrypt" "--global" "server" "true")"
+  fi
+
+  if [[ -z "$value" ]] || [[ "$value" == "default" ]]; then
+    server="https://acme-v02.api.letsencrypt.org/directory"
+  elif [[ "$value" == "staging" ]]; then
+    server="https://acme-staging-v02.api.letsencrypt.org/directory"
+  fi
+
+  echo "$value"
 }
 
 fn-letsencrypt-symlink-certs() {
