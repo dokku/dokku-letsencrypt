@@ -22,7 +22,8 @@ letsencrypt_acmeproxy_on() {
 
   # insert acme_port into config template, place resulting config in nginx.conf.d
   sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/letsencrypt.conf.sigil" \
-    ACME_PORT="$acme_port" \
+    APP="$app" \
+    DOKKU_LIB_ROOT="$DOKKU_LIB_ROOT" \
     >"$app_config_dir/letsencrypt.conf"
 
   restart_nginx | sed "s/^/       /"
@@ -94,10 +95,12 @@ letsencrypt_acme() {
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
+  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   docker run --rm \
     --user $DOKKU_UID:$DOKKU_GID \
     -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
+    -v "$DOKKU_LIB_ROOT/data/letsencrypt/$APP:/webroot" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" run | sed "s/^/       /"
 
