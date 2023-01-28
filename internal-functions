@@ -68,7 +68,6 @@ fn-letsencrypt-configure-and-get-dir() {
   echo "$DOKKU_HOST_ROOT/$APP/letsencrypt/certs/$config_hash:$config_dir"
 }
 
-
 fn-letsencrypt-create-root() {
   #shellcheck disable=SC2034
   declare desc="Ensure the let's encrypt root directory exists"
@@ -226,7 +225,7 @@ fn-letsencrypt-list-apps-with-expiry() {
 
   for APP in $(dokku_apps); do
     if [[ "$APP" == "=====>" ]] || [[ "$APP" == "My" ]] || [[ "$APP" == "Apps" ]]; then continue; fi
-    if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]] ; then
+    if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]]; then
       local expiry=$(fn-letsencrypt-expiration "$APP")
       local grace_period=$(config_get --global DOKKU_LETSENCRYPT_GRACEPERIOD || config_get "$APP" DOKKU_LETSENCRYPT_GRACEPERIOD || echo $((60 * 60 * 24 * 30)))
       local time_to_expiry=$((expiry - $(date +%s)))
