@@ -152,7 +152,7 @@ cmd-letsencrypt-disable() {
   plugn trigger post-certs-remove "$APP"
   plugn trigger post-domains-update "$APP"
 
-  dokku_log_verbose "done"
+  dokku_log_info1 "Done"
 }
 
 cmd-letsencrypt-enable() {
@@ -282,7 +282,7 @@ cmd-letsencrypt-revoke() {
   fn-letsencrypt-check-email "$APP"
   fn-letsencrypt-acme-revoke "$APP" || true
 
-  dokku_log_verbose "Done!"
+  dokku_log_info1 "Done"
 }
 
 cmd-letsencrypt-set() {
