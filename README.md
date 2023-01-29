@@ -45,7 +45,7 @@ $ dokku letsencrypt:help
 > If using "Flexible" SSL/TLS mode, avoid using this plugin.
 >
 > See these two links for more details:
-> 
+>
 >  - https://community.cloudflare.com/t/lets-encrypt-ssl-cannot-renew-with-cloudflare/257666
 >  - https://support.cloudflare.com/hc/en-us/articles/214820528-Validating-a-Let-s-Encrypt-Certificate-on-a-Site-Already-Active-on-Cloudflare
 
@@ -106,7 +106,7 @@ dokku letsencrypt:cron-job --add
 
 Variable             | Default           | Description
 ---------------------|-------------------|-------------------------------------------------------------------------
-`dns-provicer`       | (none)            | The name of a [valid lego dns-provider](https://go-acme.github.io/lego/dns/)
+`dns-provider`       | (none)            | The name of a [valid lego dns-provider](https://go-acme.github.io/lego/dns/)
 `email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
 `graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
 `lego-docker-args`   | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
