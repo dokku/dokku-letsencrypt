@@ -310,7 +310,7 @@ fn-letsencrypt-cron-job-add() {
   else
     crons="$(crontab -l || true)"
     crons="$(grep -v -F "$LETSENCRYPT_CRON_CMD" <<<"$crons")"
-    printf "%s\n%s" "$crons" "$LETSENCRYPT_CRON_JOB" | crontab -
+    printf "%s\n%s\n" "$crons" "$LETSENCRYPT_CRON_JOB" | crontab -
   fi
 
   dokku_log_info1 "Added cron job to dokku's crontab."
