@@ -1,5 +1,5 @@
 [plugin]
 description = "Automated installation of let's encrypt TLS certificates"
-version = "0.20.1"
+version = "0.20.2"
 sponsors = ["orca-scan"]
 [plugin.config]
