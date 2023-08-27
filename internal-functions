@@ -79,7 +79,7 @@ fn-letsencrypt-acme-revoke() {
 
   dokku_log_info1 "Revoking letsencrypt certificate for ${APP} via ${challenge_mode}"
   local acme_port="$(plugn trigger ports-get-available)"
-  if [[ -z "$acme_port" ]];
+  if [[ -z "$acme_port" ]]; then
     acme_port="$(get_available_port)"
   fi
 
