@@ -166,10 +166,10 @@ cmd-letsencrypt-enable() {
   declare APP="$1"
   if [[ "$APP" == "--all" ]]; then
     for app in $(dokku_apps); do
-      fn-lentsencrypt-enable "$app"
+      fn-letsencrypt-enable "$app"
     done
   else
-    fn-lentsencrypt-enable "$APP"
+    fn-letsencrypt-enable "$APP"
   fi
 }
 
