@@ -137,22 +137,21 @@ For a more in-depth explanation, see [this blog post](https://blog.semicolonsoft
 
 When securing Dockerfile and Image-based deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](https://dokku.com/docs/networking/proxy-management/#proxy-port-mapping).
 
-For Dockerfile deploys - as well as those via `git:from-image - Dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
+For Dockerfile deploys - as well as those via `git:from-image` - Dokku will determine which ports a container exposes and proxies all those exposed ports in the Docker container by listening on the same port numbers on the host. This means that **both the proxies for HTTP port 80 and HTTPS port 443 to the app's container need to be manually configured** using the `dokku proxy:ports-*` commands in order for certificate validation and browsing to the app via HTTPS to work.
 
 A full workflow for creating a new Dockerfile/Image-based deployment (where the app is listening on port 5555) with dokku-letsencrypt would be:
 
 1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote. This guide assumes that the Docker container will be listening for connections on port 5555 so replace container port numbers accordingly if necessary.
-2. On the dokku host, use `dokku proxy:ports-add myapp http:80:5555` to proxy HTTP port 80 to port 5555 on the Docker image
+2. On the dokku host, use `dokku ports:add myapp http:80:5555` to proxy HTTP port 80 to port 5555 on the Docker image
 3. On the dokku host, use `dokku letsencrypt:enable myapp` to retrieve HTTPS certificates.
-4. On the dokku host, use `dokku proxy:ports-add myapp https:443:5555` to proxy HTTPS port 443 to port 5555 on the Docker image
-5. (optional) On the dokku host, use `dokku proxy:ports-remove myapp http:5555:5555` to remove a potential leftover proxy that was automatically configured on first deploy.
+4. On the dokku host, use `dokku ports:add myapp https:443:5555` to proxy HTTPS port 443 to port 5555 on the Docker image
+5. (optional) On the dokku host, use `dokku ports:remove myapp http:5555:5555` to remove a potential leftover proxy that was automatically configured on first deploy.
 
-After these steps, the output of `dokku proxy:ports myapp` should look like this:
+After these steps, the output of `dokku ports:list myapp` should look like this:
 
 ```
 -----> Port mappings for myapp
 -----> scheme             host port                 container port
-http                      80                        5555
 https                     443                       5555
 ```
 
