@@ -393,7 +393,7 @@ fn-letsencrypt-email() {
   fn-plugin-property-get-default "letsencrypt" "$APP" "email" ""
 }
 
-fn-lentsencrypt-enable() {
+fn-letsencrypt-enable() {
   declare APP="$1"
   local EXIT_CODE=0
   local domain
