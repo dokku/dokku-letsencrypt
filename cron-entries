@@ -2,7 +2,7 @@
 
 trigger-letsencrypt-cron-entries() {
   if [[ -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew" ]]; then
-    echo "@daily;dokku letsencrypt:auto-renew;/var/log/dokku/letsencrypt.log"
+    echo "24 6 * * *;dokku letsencrypt:auto-renew;/var/log/dokku/letsencrypt.log"
   fi
 }
 
