@@ -2,6 +2,6 @@ server {
   listen       80;
   server_name  {{ .DOMAINS }};
   include      {{ $.DOKKU_ROOT }}/{{ $.APP }}/nginx.conf.d/*.conf;
-  access_log  {{ $.NGINX_ACCESS_LOG_PATH }}{{ if and ($.NGINX_ACCESS_LOG_FORMAT) (ne $.NGINX_ACCESS_LOG_PATH "off") }} {{ $.NGINX_ACCESS_LOG_FORMAT }}{{ end }};
-  error_log   {{ $.NGINX_ERROR_LOG_PATH }};
+  access_log   {{ $.NGINX_ACCESS_LOG_PATH }}{{ if and ($.NGINX_ACCESS_LOG_FORMAT) (ne $.NGINX_ACCESS_LOG_PATH "off") }} {{ $.NGINX_ACCESS_LOG_FORMAT }}{{ end }};
+  error_log    {{ $.NGINX_ERROR_LOG_PATH }};
 }

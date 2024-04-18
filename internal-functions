@@ -3,6 +3,9 @@ source "$PLUGIN_CORE_AVAILABLE_PATH/common/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/certs/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/domains/functions"
 source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/functions"
+if [[ -f "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/internal-functions" ]]; then
+  source "$PLUGIN_CORE_AVAILABLE_PATH/nginx-vhosts/internal-functions"
+fi
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
@@ -336,6 +339,7 @@ fn-letsencrypt-cron-job-remove() {
 fn-letsencrypt-create-root() {
   declare desc="Ensure the let's encrypt root directory exists"
   declare APP="$1"
+  local NGINX_ACCESS_LOG_FORMAT NGINX_ACCESS_LOG_PATH NGINX_ERROR_LOG_PATH
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
@@ -344,9 +348,18 @@ fn-letsencrypt-create-root() {
 
   if [[ ! -f "$DOKKU_ROOT/$APP/nginx.conf" ]]; then
     dokku_log_info1 "Setting temporary site"
-    local NGINX_ACCESS_LOG_FORMAT="$(fn-nginx-access-log-format "$APP")"
-    local NGINX_ACCESS_LOG_PATH="$(fn-nginx-access-log-path "$APP")"
-    local NGINX_ERROR_LOG_PATH="$(fn-nginx-error-log-path "$APP")"
+    NGINX_ACCESS_LOG_FORMAT="$(fn-nginx-access-log-format "$APP")"
+    NGINX_ACCESS_LOG_PATH="$(fn-nginx-access-log-path "$APP")"
+    NGINX_ERROR_LOG_PATH="$(fn-nginx-error-log-path "$APP")"
+    if [[ -z "$NGINX_ACCESS_LOG_FORMAT" ]]; then
+      NGINX_ACCESS_LOG_FORMAT="$(fn-nginx-computed-access-log-format "$APP")"
+    fi
+    if [[ -z "$NGINX_ACCESS_LOG_PATH" ]]; then
+      NGINX_ACCESS_LOG_PATH="$(fn-nginx-computed-access-log-path "$APP")"
+    fi
+    if [[ -z "$NGINX_ERROR_LOG_PATH" ]]; then
+      NGINX_ERROR_LOG_PATH="$(fn-nginx-computed-error-log-path "$APP")"
+    fi
 
     sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/default-nginx.conf.sigil" \
       DOMAINS="$(get_app_domains "$APP" | xargs)" DOKKU_ROOT="$DOKKU_ROOT" APP="$APP" \
