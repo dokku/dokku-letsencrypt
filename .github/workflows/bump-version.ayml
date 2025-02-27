@@ -1,0 +1,52 @@
+---
+name: "bump-version"
+
+# yamllint disable-line rule:truthy
+on:
+  workflow_dispatch:
+    inputs:
+      bump_type:
+        description: "Bump type"
+        default: "patch"
+        required: true
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+env:
+  GITHUB_ACCESS_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+
+jobs:
+  bump-version:
+    name: bump-version
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.1.4
+        with:
+          fetch-depth: 0
+          token: ${{ env.GITHUB_ACCESS_TOKEN }}
+
+      - name: Get Latest Tag
+        id: latest-tag
+        run: |
+          echo GIT_LATEST_TAG="$(git describe --tags "$(git rev-list --tags --max-count=1)")" >>"$GITHUB_OUTPUT"
+
+      - name: Compute Next Tag
+        id: next-tag
+        uses: docker://ghcr.io/dokku/semver-generator:latest
+        with:
+          bump: ${{ github.event.inputs.bump_type }}
+          input: ${{ steps.latest-tag.outputs.GIT_LATEST_TAG }}
+
+      - name: Create and Push Tag
+        run: |
+          git config --global user.name 'Dokku Bot'
+          git config --global user.email no-reply@dokku.com
+          git tag "$GIT_NEXT_TAG"
+          git push origin "$GIT_NEXT_TAG"
+        env:
+          GIT_NEXT_TAG: ${{ steps.next-tag.outputs.version }}
