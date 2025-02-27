@@ -2,8 +2,9 @@
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-export LETSENCRYPT_IMAGE=${LETSENCRYPT_IMAGE:="$(awk -F '[ :]' '{print $2}' "${_DIR}/Dockerfile")"}
-export LETSENCRYPT_IMAGE_VERSION=${LETSENCRYPT_IMAGE_VERSION:="$(awk -F '[ :]' '{print $3}' "${_DIR}/Dockerfile")"}
+DOCKERFILE_PATH=$(dirname -- "$(readlink -f -- "$BASH_SOURCE")")/Dockerfile
+export LETSENCRYPT_IMAGE=${LETSENCRYPT_IMAGE:="$(awk -F '[ :]' '{print $2}' "${DOCKERFILE_PATH}")"}
+export LETSENCRYPT_IMAGE_VERSION=${LETSENCRYPT_IMAGE_VERSION:="$(awk -F '[ :]' '{print $3}' "${DOCKERFILE_PATH}")"}
 
 export PLUGIN_DISABLE_PULL=${LETSENCRYPT_DISABLE_PULL:=}
 export PLUGIN_DISABLE_PULL_VARIABLE="LETSENCRYPT_DISABLE_PULL"
