@@ -21,7 +21,7 @@ env:
 jobs:
   bump-version:
     name: bump-version
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
