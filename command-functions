@@ -38,19 +38,23 @@ cmd-letsencrypt-auto-renew() {
     # For all apps, sorted by ascending time left until renewal.
     # This way, we'll prioritize apps that need to be renewed soon
     # if we should hit a rate limit along the way.
-    fn-letsencrypt-list-apps-with-expiry \
-      | sort -nk5 \
-      | while IFS=$'\t' read -r -a appExpiry; do
-
-        if [[ ${appExpiry[4]} -lt 0 ]]; then
-          dokku_log_info1 "${appExpiry[0]} needs renewal"
-          dokku letsencrypt:enable "${appExpiry[0]}" || EXIT_CODE=$?
-        else
-          days_left=$(fn-letsencrypt-format-timediff "${appExpiry[4]}")
-          dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
+    # Store the list in a temporary file to avoid subshell issues with pipelines
+    local temp_file=$(mktemp)
+    fn-letsencrypt-list-apps-with-expiry | sort -nk5 > "$temp_file"
+    
+    while IFS=$'\t' read -r -a appExpiry; do
+      if [[ ${appExpiry[4]} -lt 0 ]]; then
+        dokku_log_info1 "${appExpiry[0]} needs renewal"
+        if ! dokku letsencrypt:enable "${appExpiry[0]}"; then
+          EXIT_CODE=1
         fi
-
-      done
+      else
+        days_left=$(fn-letsencrypt-format-timediff "${appExpiry[4]}")
+        dokku_log_verbose "${appExpiry[0]} still has $days_left days left before renewal"
+      fi
+    done < "$temp_file"
+    
+    rm -f "$temp_file"
 
     dokku_log_info2 "Finished auto-renewal"
     if [[ "$EXIT_CODE" != 0 ]]; then
