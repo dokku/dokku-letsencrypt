@@ -1,1 +1,1 @@
-FROM goacme/lego:v4.29.0
+FROM goacme/lego:v4.30.1
