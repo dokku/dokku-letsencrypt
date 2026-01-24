@@ -231,7 +231,7 @@ fn-letsencrypt-check-email() {
 fn-letsencrypt-configure-and-get-dir() {
   declare desc="assemble lego command line arguments and create a config hash directory for them"
   declare APP="$1"
-  local config config_dir config_hash dns_provider domain_args domains email extra_args graceperiod key server value
+  local config config_dir config_hash dns_provider domain_args domains email extra_args cert_timeout key server value
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
@@ -251,10 +251,11 @@ fn-letsencrypt-configure-and-get-dir() {
     domain_args="$domain_args --domains $domain"
   done
 
-  graceperiod="$(fn-letsencrypt-computed-graceperiod "$APP")"
+  # lego --cert.timeout is in seconds and defaults to 30
+  cert_timeout=30
   email="$(fn-letsencrypt-computed-email "$APP")"
   extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
-  config="--pem --accept-tos --cert.timeout $graceperiod --path /certs --server $server --email $email $extra_args $domain_args"
+  config="--pem --accept-tos --cert.timeout $cert_timeout --path /certs --server $server --email $email $extra_args $domain_args"
 
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
   if [[ -n "$dns_provider" ]]; then
