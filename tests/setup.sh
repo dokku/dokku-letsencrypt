@@ -38,4 +38,11 @@ log "Configuring letsencrypt for Pebble"
 dokku letsencrypt:set --global server "${PEBBLE_DIRECTORY}"
 dokku letsencrypt:set --global email "${LETSENCRYPT_TEST_EMAIL}"
 
+# The first few `apps:create` invocations on a freshly-started dokku container
+# can exit non-zero while nginx is still settling. Run a throwaway create/destroy
+# now so the test suite doesn't see those early failures.
+log "Warming up apps:create / nginx reload"
+dokku apps:create letest-warmup >/dev/null
+dokku --force apps:destroy letest-warmup >/dev/null
+
 log "Setup complete"
