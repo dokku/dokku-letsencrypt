@@ -11,14 +11,12 @@ setup() {
 
   dokku letsencrypt:set --global dns-provider exec
   dokku letsencrypt:set --global dns-provider-EXEC_PATH /usr/local/bin/challtestsrv-dns.sh
-  dokku letsencrypt:set --global dns-provider-EXEC_MODE RAW
 }
 
 teardown() {
   cleanup_app "$APP"
   dokku letsencrypt:set --global dns-provider ""
   dokku letsencrypt:set --global dns-provider-EXEC_PATH ""
-  dokku letsencrypt:set --global dns-provider-EXEC_MODE ""
 }
 
 @test "letsencrypt:enable issues a wildcard Pebble cert via DNS-01" {
