@@ -637,3 +637,63 @@ fn-letsencrypt-symlink-certs() {
   cp "$config_dir/certificates/$fileSafeDomain.crt" "$app_root/tls/server.letsencrypt.crt"
   cp "$config_dir/certificates/$fileSafeDomain.crt" "$app_root/tls/server.crt"
 }
+
+fn-letsencrypt-report-parse-args() {
+  declare desc="strip --format and --global from a report invocation"
+  REPORT_FORMAT="stdout"
+  REPORT_IS_GLOBAL="false"
+  REPORT_ARGS=()
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --format)
+        REPORT_FORMAT="$2"
+        shift 2
+        ;;
+      --global)
+        REPORT_IS_GLOBAL="true"
+        shift
+        ;;
+      *)
+        REPORT_ARGS+=("$1")
+        shift
+        ;;
+    esac
+  done
+}
+
+fn-letsencrypt-report-validate-format() {
+  declare desc="reject --format when combined with an info flag"
+  declare FORMAT="$1" INFO_FLAG="$2"
+  if [[ "$FORMAT" != "stdout" ]] && [[ -n "$INFO_FLAG" ]]; then
+    dokku_log_fail "--format flag cannot be specified when specifying an info flag"
+  fi
+}
+
+fn-letsencrypt-report-filter-global() {
+  declare desc="rewrite flag_map keeping only --letsencrypt-global-* entries"
+  declare flag_map_name="$1"
+  local -n flag_map_ref="$flag_map_name"
+  local filtered=()
+  local flag key
+  for flag in "${flag_map_ref[@]}"; do
+    key="$(echo "$flag" | cut -d':' -f1)"
+    if [[ "$key" == *"-global-"* ]]; then
+      filtered+=("$flag")
+    fi
+  done
+  flag_map_ref=("${filtered[@]}")
+}
+
+fn-letsencrypt-report-emit-json() {
+  declare desc="emit a flag_map as a JSON object, stripping the --letsencrypt- key prefix"
+  declare flag_map_name="$1"
+  local -n flag_map_ref="$flag_map_name"
+  local json_output="{}"
+  local flag key value
+  for flag in "${flag_map_ref[@]}"; do
+    key="$(echo "$flag" | cut -d':' -f1 | sed 's/^--letsencrypt-//')"
+    value="$(echo "$flag" | cut -d':' -f2- | sed 's/^ //')"
+    json_output="$(echo "$json_output" | jq -c --arg key "$key" --arg value "$value" '. + {($key): $value}')"
+  done
+  echo "$json_output"
+}
