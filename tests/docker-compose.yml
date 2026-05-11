@@ -1,0 +1,68 @@
+services:
+  challtestsrv:
+    image: ghcr.io/letsencrypt/pebble-challtestsrv:latest
+    container_name: letest-challtestsrv
+    restart: unless-stopped
+    network_mode: host
+    command: ["-defaultIPv6", "", "-defaultIPv4", ""]
+
+  pebble-init:
+    build:
+      context: ./pebble
+    container_name: letest-pebble-init
+    network_mode: host
+    environment:
+      - PEBBLE_CERT_IP=172.17.0.1
+    volumes:
+      - pebble-certs:/certs
+      - ./lego/pebble.minica.pem:/minica/pebble.minica.pem:ro
+      - ./lego/pebble.minica.key.pem:/minica/pebble.minica.key.pem:ro
+
+  pebble:
+    image: ghcr.io/letsencrypt/pebble:latest
+    container_name: letest-pebble
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      pebble-init:
+        condition: service_completed_successfully
+      challtestsrv:
+        condition: service_started
+    command:
+      - "-config"
+      - "/etc/pebble/pebble-config.json"
+      - "-dnsserver"
+      - "172.17.0.1:8053"
+    volumes:
+      - pebble-certs:/certs:ro
+      - ./pebble/pebble-config.json:/etc/pebble/pebble-config.json:ro
+
+  dokku:
+    build:
+      context: ./dokku
+      args:
+        DOKKU_VERSION: ${DOKKU_VERSION:-latest}
+    container_name: letest-dokku
+    restart: unless-stopped
+    profiles: ["compose-mode"]
+    depends_on:
+      pebble:
+        condition: service_started
+      challtestsrv:
+        condition: service_started
+    environment:
+      - DOKKU_HOSTNAME=dokku.test
+      - DOKKU_HOST_ROOT=${LETEST_HOST_DIR}/home/dokku
+      - DOKKU_LIB_HOST_ROOT=${LETEST_HOST_DIR}/var/lib/dokku
+    ports:
+      - "80:80"
+      - "443:443"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ${LETEST_HOST_DIR}:/mnt/dokku
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ../:/plugin-src:ro
+
+volumes:
+  pebble-certs:

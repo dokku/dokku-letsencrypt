@@ -1,0 +1,14 @@
+# SC1091: source files outside the lint set (dokku core plugins) cannot be followed
+disable=SC1091
+# SC2034: `declare desc=...` / `declare trigger=...` are introspected by dokku for help output
+disable=SC2034
+# SC2068: `set -- $DOKKU_APP_NAME $@` is the canonical --app/$DOKKU_APP_NAME shim across dokku plugins
+disable=SC2068
+# SC2086: explicit word-splitting is used pervasively in this plugin and matches dokku core conventions
+disable=SC2086
+# SC2154: simple_result is referenced but not assigned; pre-existing in revoke error path
+disable=SC2154
+# SC2155: declare-and-assign is the established style here
+disable=SC2155
+# SC2231: unquoted glob in for-loops on known-safe paths
+disable=SC2231

@@ -8,3 +8,5 @@ Session.vim
 .netrwhist
 *~
 
+# test scratch space
+tmp/
