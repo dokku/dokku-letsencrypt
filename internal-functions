@@ -442,7 +442,7 @@ fn-letsencrypt-expiration() {
 
   if [[ -f "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" ]]; then
     date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$APP/tls/server.letsencrypt.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
-  else
+  elif [[ -f "$DOKKU_ROOT/$APP/tls/server.crt" ]]; then
     date -u -d "$(openssl x509 -in "$DOKKU_ROOT/$APP/tls/server.crt" -enddate -noout | sed -e "s/^notAfter=//")" "+%s"
   fi
 }
