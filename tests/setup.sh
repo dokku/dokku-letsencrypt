@@ -37,10 +37,14 @@ dokku plugin:install "file:///tmp/letsencrypt"
 log "Configuring letsencrypt for Pebble"
 dokku letsencrypt:set --global server "${PEBBLE_DIRECTORY}"
 dokku letsencrypt:set --global email "${LETSENCRYPT_TEST_EMAIL}"
-# Point lego at challtestsrv for the recursive lookups it does to find the
-# zone apex of *.dokku.test. Without this lego falls back to the runner's
-# default resolver, which has no idea about the .test TLD.
-dokku letsencrypt:set --global lego-docker-args "--dns.resolvers=172.17.0.1:8053"
+# Point lego at challtestsrv for recursive lookups (the runner's default
+# resolver has no view of the .test TLD), and skip the TXT-record
+# propagation check: pebble-challtestsrv answers the TXT lookups pebble
+# itself does, but it does not implement SOA queries, so lego's
+# zone-discovery step fails. `--dns.propagation-wait` replaces the SOA
+# walk with a fixed wait, which is plenty since challtestsrv applies
+# `/set-txt` writes immediately.
+dokku letsencrypt:set --global lego-docker-args "--dns.resolvers=172.17.0.1:8053 --dns.propagation-wait=1s"
 
 # The first few `apps:create` invocations on a freshly-started dokku container
 # can exit non-zero while nginx is still settling. Run a throwaway create/destroy
