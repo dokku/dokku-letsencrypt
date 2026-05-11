@@ -17,14 +17,6 @@ new_app_name() {
 
 create_app() {
   local app="$1"
-  if dokku apps:create "$app"; then
-    return 0
-  fi
-  # The very first apps:create after a freshly-started dokku can exit
-  # non-zero while a post-create trigger is still settling. Tear the
-  # half-created app down and try once more before giving up.
-  dokku --force apps:destroy "$app" >/dev/null 2>&1 || true
-  sleep 2
   dokku apps:create "$app"
 }
 

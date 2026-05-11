@@ -63,12 +63,6 @@ services:
       - ${LETEST_HOST_DIR}:/mnt/dokku
       - /var/run/docker.sock:/var/run/docker.sock
       - ../:/plugin-src:ro
-    healthcheck:
-      test: ["CMD-SHELL", "dokku --quiet version >/dev/null 2>&1"]
-      interval: 5s
-      timeout: 5s
-      retries: 30
-      start_period: 30s
 
 volumes:
   pebble-certs:

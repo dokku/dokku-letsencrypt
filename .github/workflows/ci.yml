@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         dokku_version:
-          - latest
+          - 0.38.3
 
     env:
       DOKKU_VERSION: ${{ matrix.dokku_version }}
@@ -66,10 +66,11 @@ jobs:
       fail-fast: false
       matrix:
         dokku_version:
-          - latest
+          - 0.38.3
 
     env:
       DOKKU_VERSION: ${{ matrix.dokku_version }}
+      DOKKU_TAG: v${{ matrix.dokku_version }}
 
     steps:
       - name: Checkout
