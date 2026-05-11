@@ -37,6 +37,10 @@ dokku plugin:install "file:///tmp/letsencrypt"
 log "Configuring letsencrypt for Pebble"
 dokku letsencrypt:set --global server "${PEBBLE_DIRECTORY}"
 dokku letsencrypt:set --global email "${LETSENCRYPT_TEST_EMAIL}"
+# Point lego at challtestsrv for the recursive lookups it does to find the
+# zone apex of *.dokku.test. Without this lego falls back to the runner's
+# default resolver, which has no idea about the .test TLD.
+dokku letsencrypt:set --global lego-docker-args "--dns.resolvers=172.17.0.1:8053"
 
 # The first few `apps:create` invocations on a freshly-started dokku container
 # can exit non-zero while nginx is still settling. Run a throwaway create/destroy
