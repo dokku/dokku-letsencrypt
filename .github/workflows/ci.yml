@@ -1,0 +1,55 @@
+---
+name: "ci"
+
+# yamllint disable-line rule:truthy
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+
+jobs:
+  test:
+    name: test (dokku ${{ matrix.dokku_version }})
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dokku_version:
+          - latest
+
+    env:
+      DOKKU_VERSION: ${{ matrix.dokku_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Bring up the test stack
+        run: make setup
+
+      - name: Run lint
+        run: make lint
+
+      - name: Run unit tests
+        run: make unit-tests
+
+      - name: Collect compose logs on failure
+        if: failure()
+        run: make logs > tmp/compose-logs.txt || true
+
+      - name: Upload compose logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compose-logs-dokku-${{ matrix.dokku_version }}
+          path: tmp/compose-logs.txt
+          if-no-files-found: ignore
+
+      - name: Tear down the test stack
+        if: always()
+        run: make clean
