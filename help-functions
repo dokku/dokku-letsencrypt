@@ -35,6 +35,7 @@ fn-help-content() {
     letsencrypt:enable <app>, Enable or renew letsencrypt for an app
     letsencrypt:help, Display letsencrypt help
     letsencrypt:list, List letsencrypt-secured apps with certificate expiry times
+    letsencrypt:report [<app>|--global] [<flag>] [--format json], Display a letsencrypt report for one or more apps
     letsencrypt:revoke <app>, Revoke letsencrypt certificate for app
     letsencrypt:set <app> <property> (<value>), Set or clear a letsencrypt property for an app
 help_content

@@ -12,3 +12,5 @@ disable=SC2154
 disable=SC2155
 # SC2231: unquoted glob in for-loops on known-safe paths
 disable=SC2231
+# SC2178: bash nameref via `local -n` is intentionally an array reference
+disable=SC2178

@@ -31,6 +31,7 @@ $ dokku letsencrypt:help
     letsencrypt:disable <app>               Disable letsencrypt for an app
     letsencrypt:enable <app>                Enable or renew letsencrypt for an app
     letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
+    letsencrypt:report [<app>|--global]     Display a letsencrypt report for one or more apps
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
 ```
 
@@ -116,6 +117,37 @@ Variable             | Default           | Description
 You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
 
 > Note: See "DNS-01 Challenge" for more information on configuration a dns-provider for DNS-01 based challenges and wildcard support.
+
+## Reports
+
+The `letsencrypt:report` command exposes app-level and global plugin properties for consumption by external tooling. Without arguments, it prints a human-readable report for every app:
+
+```shell
+dokku letsencrypt:report
+dokku letsencrypt:report myapp
+```
+
+Pass `--global` to limit output to the global properties only:
+
+```shell
+dokku letsencrypt:report --global
+```
+
+Pass `--format json` to emit a JSON object instead of the default stdout layout. The flag works with app, global, and "all apps" invocations:
+
+```shell
+dokku letsencrypt:report myapp --format json
+dokku letsencrypt:report --global --format json
+dokku letsencrypt:report --format json
+```
+
+Specifying a single property flag (such as `--letsencrypt-email`) still prints just that value:
+
+```shell
+dokku letsencrypt:report myapp --letsencrypt-email
+```
+
+Combining `--format json` with a single property flag is rejected.
 
 ## Redirecting from HTTP to HTTPS
 
