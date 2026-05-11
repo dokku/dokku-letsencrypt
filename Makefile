@@ -1,6 +1,17 @@
 DOKKU_VERSION ?= latest
 LETEST_HOST_DIR ?= $(CURDIR)/tmp/letest-host
 
+# Optional path or filename relative to /plugin-src/tests passed to bats, e.g.
+# `make unit-tests UNIT_TESTS=letsencrypt_enable_http01.bats`. Defaults to the
+# whole tests directory.
+UNIT_TESTS ?= .
+# Optional regex passed to bats --filter to scope down to a single test name.
+UNIT_TESTS_FILTER ?=
+BATS_FLAGS := --timing --print-output-on-failure
+ifneq ($(UNIT_TESTS_FILTER),)
+BATS_FLAGS += --filter '$(UNIT_TESTS_FILTER)'
+endif
+
 COMPOSE := DOKKU_VERSION=$(DOKKU_VERSION) LETEST_HOST_DIR=$(LETEST_HOST_DIR) docker compose -f tests/docker-compose.yml
 COMPOSE_EXEC_DOKKU := $(COMPOSE) exec -T dokku
 
@@ -31,7 +42,7 @@ lint:
 	$(COMPOSE_EXEC_DOKKU) shellcheck $(addprefix /plugin-src/, $(PLUGIN_BASH_FILES))
 
 unit-tests:
-	$(COMPOSE_EXEC_DOKKU) bats /plugin-src/tests
+	$(COMPOSE_EXEC_DOKKU) bats $(BATS_FLAGS) /plugin-src/tests/$(UNIT_TESTS)
 
 test: lint unit-tests
 
