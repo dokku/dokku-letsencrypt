@@ -27,12 +27,12 @@ teardown() {
 
 @test "cron-entries trigger emits an entry only when autorenew is enabled" {
   dokku letsencrypt:cron-job --remove >/dev/null 2>&1 || true
-  run env DOKKU_LIB_ROOT=/var/lib/dokku /var/lib/dokku/plugins/enabled/letsencrypt/cron-entries
+  run dokku plugin:trigger cron-entries
   [ "$status" -eq 0 ]
   ! echo "$output" | grep -q "letsencrypt:auto-renew"
 
   dokku letsencrypt:cron-job --add
-  run env DOKKU_LIB_ROOT=/var/lib/dokku /var/lib/dokku/plugins/enabled/letsencrypt/cron-entries
+  run dokku plugin:trigger cron-entries
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "letsencrypt:auto-renew"
 }
