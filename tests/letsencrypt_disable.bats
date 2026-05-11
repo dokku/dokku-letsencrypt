@@ -17,14 +17,14 @@ teardown() {
 
 @test "letsencrypt:disable removes cert files and the letsencrypt directory" {
   dokku letsencrypt:enable "$APP"
-  [ -d "/home/dokku/${APP}/letsencrypt" ]
-  [ -f "/home/dokku/${APP}/tls/server.letsencrypt.crt" ]
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt"
+  $SUDO test -f "/home/dokku/${APP}/tls/server.letsencrypt.crt"
 
   run dokku letsencrypt:disable "$APP"
   [ "$status" -eq 0 ]
 
-  [ ! -d "/home/dokku/${APP}/letsencrypt" ]
-  [ ! -d "/home/dokku/${APP}/tls" ]
+  $SUDO test ! -d "/home/dokku/${APP}/letsencrypt"
+  $SUDO test ! -d "/home/dokku/${APP}/tls"
 
   run dokku letsencrypt:active "$APP"
   [ "$output" = "false" ]

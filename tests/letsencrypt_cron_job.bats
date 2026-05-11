@@ -9,30 +9,30 @@ teardown() {
 }
 
 @test "cron-job --add creates the autorenew flag" {
-  rm -f "$AUTORENEW_FLAG"
+  $SUDO rm -f "$AUTORENEW_FLAG"
 
   run dokku letsencrypt:cron-job --add
   [ "$status" -eq 0 ]
-  [ -f "$AUTORENEW_FLAG" ]
+  $SUDO test -f "$AUTORENEW_FLAG"
 }
 
 @test "cron-job --remove deletes the autorenew flag" {
   dokku letsencrypt:cron-job --add
-  [ -f "$AUTORENEW_FLAG" ]
+  $SUDO test -f "$AUTORENEW_FLAG"
 
   run dokku letsencrypt:cron-job --remove
   [ "$status" -eq 0 ]
-  [ ! -f "$AUTORENEW_FLAG" ]
+  $SUDO test ! -f "$AUTORENEW_FLAG"
 }
 
 @test "cron-entries trigger emits an entry only when autorenew is enabled" {
   dokku letsencrypt:cron-job --remove >/dev/null 2>&1 || true
-  run dokku plugin:trigger cron-entries
+  run $SUDO dokku plugin:trigger cron-entries
   [ "$status" -eq 0 ]
   ! echo "$output" | grep -q "letsencrypt:auto-renew"
 
   dokku letsencrypt:cron-job --add
-  run dokku plugin:trigger cron-entries
+  run $SUDO dokku plugin:trigger cron-entries
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "letsencrypt:auto-renew"
 }

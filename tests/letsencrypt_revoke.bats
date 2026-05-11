@@ -17,7 +17,7 @@ teardown() {
 
 @test "letsencrypt:revoke removes the certificate" {
   dokku letsencrypt:enable "$APP"
-  [ -f "$(cert_path_for "$APP")" ]
+  $SUDO test -f "$(cert_path_for "$APP")"
 
   run dokku letsencrypt:revoke "$APP"
   [ "$status" -eq 0 ]

@@ -26,13 +26,13 @@ teardown() {
   [ "$baseline_hash" != "$new_hash" ]
 
   # both hash dirs exist before cleanup
-  [ -d "/home/dokku/${APP}/letsencrypt/certs/${baseline_hash}" ]
-  [ -d "/home/dokku/${APP}/letsencrypt/certs/${new_hash}" ]
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt/certs/${baseline_hash}"
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt/certs/${new_hash}"
 
   run dokku letsencrypt:cleanup "$APP"
   [ "$status" -eq 0 ]
 
-  [ ! -d "/home/dokku/${APP}/letsencrypt/certs/${baseline_hash}" ]
-  [ -d "/home/dokku/${APP}/letsencrypt/certs/${new_hash}" ]
+  $SUDO test ! -d "/home/dokku/${APP}/letsencrypt/certs/${baseline_hash}"
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt/certs/${new_hash}"
   [ "$(basename "$(current_config_dir "$APP")")" = "$new_hash" ]
 }

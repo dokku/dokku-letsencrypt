@@ -21,8 +21,8 @@ teardown() {
   [ "$status" -eq 0 ]
 
   current="$(current_config_dir "$APP")"
-  [ -f "$current/config" ]
-  grep -qF -- "--cert.timeout=45" "$current/config"
+  $SUDO test -f "$current/config"
+  $SUDO grep -qF -- "--cert.timeout=45" "$current/config"
 }
 
 @test "changing lego-docker-args changes the config hash" {

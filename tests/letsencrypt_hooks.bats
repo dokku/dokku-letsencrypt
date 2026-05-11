@@ -26,24 +26,24 @@ teardown() {
 
 @test "post-app-rename clears the letsencrypt directory on the renamed app" {
   dokku letsencrypt:enable "$APP"
-  [ -d "/home/dokku/${APP}/letsencrypt" ]
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt"
 
   RENAMED_APP="${APP}-renamed"
   register_a_record "${RENAMED_APP}.${TEST_DOMAIN_BASE}"
   dokku apps:rename "$APP" "$RENAMED_APP"
 
-  [ ! -d "/home/dokku/${APP}/letsencrypt" ]
-  [ ! -d "/home/dokku/${RENAMED_APP}/letsencrypt" ]
+  $SUDO test ! -d "/home/dokku/${APP}/letsencrypt"
+  $SUDO test ! -d "/home/dokku/${RENAMED_APP}/letsencrypt"
 }
 
 @test "post-app-clone clears the letsencrypt directory on the clone" {
   dokku letsencrypt:enable "$APP"
-  [ -d "/home/dokku/${APP}/letsencrypt" ]
+  $SUDO test -d "/home/dokku/${APP}/letsencrypt"
 
   CLONED_APP="${APP}-clone"
   dokku apps:clone --skip-deploy "$APP" "$CLONED_APP"
 
-  [ ! -d "/home/dokku/${CLONED_APP}/letsencrypt" ]
+  $SUDO test ! -d "/home/dokku/${CLONED_APP}/letsencrypt"
 }
 
 @test "post-delete clears letsencrypt properties for a destroyed app" {
@@ -55,5 +55,5 @@ teardown() {
   dokku --force apps:destroy "$APP"
 
   prop_dir="/var/lib/dokku/config/letsencrypt/${APP}"
-  [ ! -d "$prop_dir" ]
+  $SUDO test ! -d "$prop_dir"
 }

@@ -24,8 +24,8 @@ teardown() {
   [ "$status" -eq 0 ]
 
   current="$(current_config_dir "$APP")"
-  [ -f "$current/certificates/${FILESAFE_DOMAIN}.crt" ]
-  [ -f "$current/certificates/${FILESAFE_DOMAIN}.key" ]
+  $SUDO test -f "$current/certificates/${FILESAFE_DOMAIN}.crt"
+  $SUDO test -f "$current/certificates/${FILESAFE_DOMAIN}.key"
 
   assert_cert_exists "$APP"
   assert_cert_san_contains "$APP" "*.${APP}.${TEST_DOMAIN_BASE}"

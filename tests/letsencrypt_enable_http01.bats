@@ -37,9 +37,9 @@ teardown() {
 
   current="$(current_config_dir "$APP")"
   [ -n "$current" ]
-  [ -d "$current" ]
-  [ -f "$current/certificates/${DOMAIN}.crt" ]
-  [ -f "$current/certificates/${DOMAIN}.key" ]
+  $SUDO test -d "$current"
+  $SUDO test -f "$current/certificates/${DOMAIN}.crt"
+  $SUDO test -f "$current/certificates/${DOMAIN}.key"
 }
 
 @test "letsencrypt:enable fails without an email" {

@@ -68,7 +68,7 @@ install-plugin-native:
 	bash tests/setup-native.sh
 
 unit-tests-native:
-	bats $(BATS_FLAGS) tests/$(UNIT_TESTS)
+	SUDO=sudo bats $(BATS_FLAGS) tests/$(UNIT_TESTS)
 
 clean-native:
 	$(COMPOSE_COMPOSE_MODE) down -v --remove-orphans

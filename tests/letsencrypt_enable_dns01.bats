@@ -31,6 +31,6 @@ teardown() {
   dokku letsencrypt:enable "$APP"
 
   current="$(current_config_dir "$APP")"
-  [ -f "$current/docker.env" ]
-  grep -q '^EXEC_PATH=/usr/local/bin/challtestsrv-dns.sh$' "$current/docker.env"
+  $SUDO test -f "$current/docker.env"
+  $SUDO grep -q '^EXEC_PATH=/usr/local/bin/challtestsrv-dns.sh$' "$current/docker.env"
 }
