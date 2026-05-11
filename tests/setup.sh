@@ -47,10 +47,18 @@ dokku letsencrypt:set --global email "${LETSENCRYPT_TEST_EMAIL}"
 dokku letsencrypt:set --global lego-docker-args "--dns.resolvers=172.17.0.1:8053 --dns.propagation-wait=1s"
 
 # The first few `apps:create` invocations on a freshly-started dokku container
-# can exit non-zero while nginx is still settling. Run a throwaway create/destroy
-# now so the test suite doesn't see those early failures.
+# can exit non-zero while nginx is still settling. Loop here until one
+# succeeds so the real test suite never sees those early failures.
 log "Warming up apps:create / nginx reload"
-dokku apps:create letest-warmup >/dev/null
-dokku --force apps:destroy letest-warmup >/dev/null
+warmup_attempts=0
+until dokku apps:create letest-warmup >/dev/null 2>&1; do
+  warmup_attempts=$((warmup_attempts + 1))
+  if [ "$warmup_attempts" -ge 15 ]; then
+    log "WARN: warmup apps:create did not succeed after 15 attempts; continuing"
+    break
+  fi
+  sleep 2
+done
+dokku --force apps:destroy letest-warmup >/dev/null 2>&1 || true
 
 log "Setup complete"

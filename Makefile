@@ -51,4 +51,6 @@ logs:
 
 clean:
 	$(COMPOSE) down -v --remove-orphans
-	rm -rf $(LETEST_HOST_DIR)
+	# The host-side state dir contains files owned by root inside the
+	# dokku container, which the host user cannot rm without elevation.
+	rm -rf $(LETEST_HOST_DIR) 2>/dev/null || sudo rm -rf $(LETEST_HOST_DIR)
