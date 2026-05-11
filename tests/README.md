@@ -50,3 +50,21 @@ Defaults to `latest`. Tear the stack down (`make clean`) before switching versio
 ## What gets printed
 
 `make unit-tests` runs bats with `--timing` and `--print-output-on-failure`, so each line includes the per-test duration and any failing test dumps the captured `$output` automatically. No extra flags needed.
+
+## Native mode
+
+The same suite can also run against a Dokku installed directly on the host - the same path the plugin actually ships through. CI runs both modes in parallel; locally it's an opt-in path because `bootstrap.sh` is destructive (it installs Dokku, configures nginx, and creates a `dokku` system user). **Linux only**, and not safe to run on a workstation you care about - use a throwaway VM or a fresh container.
+
+```shell
+make setup-native
+make unit-tests-native
+make clean-native
+```
+
+| Target | What it does |
+|--------|--------------|
+| `make setup-native` | Build the lego image, bring up the Pebble compose services (no dokku container), bootstrap dokku via the upstream `bootstrap.sh`, install the plugin natively. |
+| `make unit-tests-native` | Run the bats suite directly on the host against the native dokku install. Same `UNIT_TESTS` / `UNIT_TESTS_FILTER` knobs as `unit-tests`. |
+| `make clean-native` | `docker compose down -v` for the Pebble services. The native dokku install itself is left in place. |
+
+`setup-native` honors `DOKKU_TAG` to install a specific Dokku release instead of master.

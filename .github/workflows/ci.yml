@@ -57,3 +57,62 @@ jobs:
       - name: Tear down the test stack
         if: always()
         run: make clean
+
+  test-native:
+    name: test-native (dokku ${{ matrix.dokku_version }})
+    runs-on: ubuntu-24.04
+
+    strategy:
+      fail-fast: false
+      matrix:
+        dokku_version:
+          - latest
+
+    env:
+      DOKKU_VERSION: ${{ matrix.dokku_version }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Bootstrap dokku and bring up Pebble services
+        run: make setup-native
+
+      - name: Run unit tests
+        run: make unit-tests-native
+
+      - name: Collect diagnostic logs on failure
+        if: failure()
+        run: |
+          mkdir -p tmp
+          make logs > tmp/compose-logs-native.txt || true
+          {
+            echo "### dokku --version"
+            dokku --version || true
+            echo
+            echo "### nginx -t"
+            sudo nginx -t || true
+            echo
+            echo "### journalctl -n 500"
+            sudo journalctl -n 500 --no-pager || true
+          } > tmp/native-diag.txt || true
+
+      - name: Upload diagnostic logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: native-diag-dokku-${{ matrix.dokku_version }}
+          path: |
+            tmp/compose-logs-native.txt
+            tmp/native-diag.txt
+          if-no-files-found: ignore
+
+      - name: Tear down the Pebble services
+        if: always()
+        run: make clean-native
