@@ -47,15 +47,16 @@ fn-letsencrypt-ensure-shared-accounts-dir() {
 }
 
 fn-letsencrypt-ensure-app-webroot-dir() {
-  declare desc="create the per-app ACME webroot with traversable group perms"
+  declare desc="create the per-app ACME webroot with world-traversable perms"
   declare APP="$1"
   local webroot
   webroot="$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
   mkdir -p "$webroot"
-  # nginx (www-data, in the dokku group) must traverse this directory to
-  # serve /.well-known/acme-challenge files. Pin the mode so a restrictive
-  # umask on the invoker (e.g. 0077) cannot leave it at 0700.
-  chmod 0750 "$webroot"
+  # nginx must traverse this directory to serve /.well-known/acme-challenge
+  # files. The files are public by design (ACME HTTP-01 fetches them over
+  # plain HTTP), and not every dokku install puts www-data in the dokku
+  # group, so pin 0755 instead of relying on the invoker's umask.
+  chmod 0755 "$webroot"
 }
 
 fn-letsencrypt-account-server-dir() {

@@ -15,8 +15,8 @@ load 'test_helper'
   run $SUDO dokku plugin:update letsencrypt
   [ "$status" -eq 0 ]
 
-  [ "$($SUDO stat -c '%a' "$parent")" = "750" ]
-  [ "$($SUDO stat -c '%a' "$webroot")" = "750" ]
+  [ "$($SUDO stat -c '%a' "$parent")" = "755" ]
+  [ "$($SUDO stat -c '%a' "$webroot")" = "755" ]
   [ "$($SUDO stat -c '%a' "${parent}/accounts")" = "700" ]
 
   $SUDO rm -rf "$webroot"

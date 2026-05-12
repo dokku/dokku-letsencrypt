@@ -116,7 +116,7 @@ teardown() {
   echo "$output" | grep -qi "no domains"
 }
 
-@test "letsencrypt:enable normalizes the per-app webroot perms to 0750" {
+@test "letsencrypt:enable normalizes the per-app webroot perms to 0755" {
   webroot="/var/lib/dokku/data/letsencrypt/$APP"
   $SUDO mkdir -p "$webroot"
   $SUDO chmod 0700 "$webroot"
@@ -125,7 +125,7 @@ teardown() {
   [ "$status" -eq 0 ]
 
   perm="$($SUDO stat -c '%a' "$webroot")"
-  [ "$perm" = "750" ]
+  [ "$perm" = "755" ]
 }
 
 @test "letsencrypt:enable reissues when a new domain is added" {
