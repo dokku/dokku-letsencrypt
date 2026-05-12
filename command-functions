@@ -253,6 +253,9 @@ cmd-letsencrypt-report-single() {
     "--letsencrypt-computed-lego-args: $(fn-letsencrypt-computed-lego-args "$APP")"
     "--letsencrypt-global-lego-args: $(fn-letsencrypt-global-lego-args)"
     "--letsencrypt-lego-args: $(fn-letsencrypt-lego-args "$APP")"
+    "--letsencrypt-computed-lego-docker-options: $(fn-letsencrypt-computed-lego-docker-options "$APP")"
+    "--letsencrypt-global-lego-docker-options: $(fn-letsencrypt-global-lego-docker-options)"
+    "--letsencrypt-lego-docker-options: $(fn-letsencrypt-lego-docker-options "$APP")"
     "--letsencrypt-computed-server: $(fn-letsencrypt-computed-server "$APP")"
     "--letsencrypt-global-server: $(fn-letsencrypt-global-server)"
     "--letsencrypt-server: $(fn-letsencrypt-server "$APP")"
@@ -323,13 +326,13 @@ cmd-letsencrypt-set() {
   declare cmd="letsencrypt:set"
   [[ "$1" == "$cmd" ]] && shift 1
   declare APP="$1" KEY="$2" VALUE="$3"
-  local VALID_KEYS=("dns-provider" "email" "graceperiod" "server" "lego-args")
+  local VALID_KEYS=("dns-provider" "email" "graceperiod" "server" "lego-args" "lego-docker-options")
   [[ "$APP" == "--global" ]] || verify_app_name "$APP"
 
   [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
 
   if ! fn-in-array "$KEY" "${VALID_KEYS[@]}" && [[ "$KEY" != dns-provider-* ]]; then
-    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, dns-provider-*, email, graceperiod, server, lego-args"
+    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, dns-provider-*, email, graceperiod, server, lego-args, lego-docker-options"
   fi
 
   if [[ -n "$VALUE" ]]; then

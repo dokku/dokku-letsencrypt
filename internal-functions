@@ -35,6 +35,10 @@ fn-letsencrypt-acme-execute-challenge() {
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
+  local docker_options_argv=()
+  if [[ -f "$container_config_dir/docker_options" ]]; then
+    read -r -a docker_options_argv <"$container_config_dir/docker_options"
+  fi
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
@@ -47,6 +51,7 @@ fn-letsencrypt-acme-execute-challenge() {
     --user $DOKKU_UID:$DOKKU_GID \
     -v "$host_config_dir:/certs" \
     -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
+    "${docker_options_argv[@]}" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" run | sed "s/^/       /"
 
@@ -91,6 +96,10 @@ fn-letsencrypt-acme-revoke() {
   host_config_dir="$(echo "$config_dirs" | cut -d: -f1)"
   container_config_dir="$(echo "$config_dirs" | cut -d: -f2)"
   read -r -a config <"$container_config_dir/config"
+  local docker_options_argv=()
+  if [[ -f "$container_config_dir/docker_options" ]]; then
+    read -r -a docker_options_argv <"$container_config_dir/docker_options"
+  fi
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
@@ -104,6 +113,7 @@ fn-letsencrypt-acme-revoke() {
     -p "$acme_port:$acme_port" \
     -v "$host_config_dir:/certs" \
     -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
+    "${docker_options_argv[@]}" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
     "${config[@]}" revoke | sed "s/^/       /"
 
@@ -215,6 +225,31 @@ fn-letsencrypt-lego-args() {
   fn-plugin-property-get-default "letsencrypt" "$APP" "lego-args" ""
 }
 
+fn-letsencrypt-computed-lego-docker-options() {
+  declare desc="get configured docker run options for the lego container"
+  declare APP="$1"
+
+  value="$(fn-letsencrypt-lego-docker-options "$APP")"
+  if [[ -z "$value" ]]; then
+    value="$(fn-letsencrypt-global-lego-docker-options)"
+  fi
+
+  echo "$value"
+}
+
+fn-letsencrypt-global-lego-docker-options() {
+  declare desc="get configured docker run options for the lego container"
+
+  fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-options" ""
+}
+
+fn-letsencrypt-lego-docker-options() {
+  declare desc="get configured docker run options for the lego container"
+  declare APP="$1"
+
+  fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-options" ""
+}
+
 fn-letsencrypt-check-email() {
   declare desc="Check if an e-mail address is provided globally or for the app"
   declare APP="$1"
@@ -231,7 +266,7 @@ fn-letsencrypt-check-email() {
 fn-letsencrypt-configure-and-get-dir() {
   declare desc="assemble lego command line arguments and create a config hash directory for them"
   declare APP="$1"
-  local config config_dir config_hash dns_provider domain_args domains email extra_args cert_timeout key server value
+  local config config_dir config_hash dns_provider docker_options_value domain_args domains email extra_args cert_timeout key server value
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
@@ -255,6 +290,7 @@ fn-letsencrypt-configure-and-get-dir() {
   cert_timeout=30
   email="$(fn-letsencrypt-computed-email "$APP")"
   extra_args="$(fn-letsencrypt-computed-lego-args "$APP")"
+  docker_options_value="$(fn-letsencrypt-computed-lego-docker-options "$APP")"
   config="--pem --accept-tos --cert.timeout $cert_timeout --path /certs --server $server --email $email $extra_args $domain_args"
 
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"
@@ -264,7 +300,7 @@ fn-letsencrypt-configure-and-get-dir() {
     config="--http --http.webroot /webroot $config"
   fi
 
-  config_hash=$(echo "$config" | sha1sum | awk '{print $1}')
+  config_hash=$(echo "$config $docker_options_value" | sha1sum | awk '{print $1}')
   config_dir="$le_root/certs/$config_hash"
   mkdir -p "$config_dir"
 
@@ -294,6 +330,7 @@ fn-letsencrypt-configure-and-get-dir() {
 
   # store config settings
   echo "$config" >"$config_dir/config"
+  echo "$docker_options_value" >"$config_dir/docker_options"
 
   # send both host and container path
   # to respect mapped DOKKU_ROOT when running in a container
