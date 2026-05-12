@@ -10,6 +10,7 @@ setup() {
 teardown() {
   cleanup_app "$APP"
   dokku letsencrypt:set --global graceperiod "" || true
+  dokku letsencrypt:set --global dns-provider "" || true
 }
 
 @test "letsencrypt:set writes app-level property" {
@@ -66,6 +67,38 @@ teardown() {
   run dokku letsencrypt:report "$APP" --letsencrypt-lego-docker-options
   [ "$status" -eq 0 ]
   [ "$output" = "-v /tmp/foo:/foo:ro" ]
+}
+
+@test "app-level dns-provider 'none' overrides a global dns-provider" {
+  dokku letsencrypt:set --global dns-provider exec
+  dokku letsencrypt:set "$APP" dns-provider none
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-computed-dns-provider
+  [ "$status" -ne 0 ]
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-dns-provider
+  [ "$status" -eq 0 ]
+  [ "$output" = "none" ]
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-global-dns-provider
+  [ "$status" -eq 0 ]
+  [ "$output" = "exec" ]
+}
+
+@test "global dns-provider 'none' is treated as empty in computed value" {
+  dokku letsencrypt:set --global dns-provider none
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-computed-dns-provider
+  [ "$status" -ne 0 ]
+}
+
+@test "app-level dns-provider override still works for a real provider" {
+  dokku letsencrypt:set --global dns-provider exec
+  dokku letsencrypt:set "$APP" dns-provider route53
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-computed-dns-provider
+  [ "$status" -eq 0 ]
+  [ "$output" = "route53" ]
 }
 
 @test "letsencrypt:report shows expected fields when nothing is set" {

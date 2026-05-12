@@ -252,6 +252,16 @@ dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
 
 Please see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
 
+### Disabling DNS-01 for a single app
+
+When a global `dns-provider` is set but a particular app's domain is not managed by that provider, set the app's `dns-provider` to `none` to force HTTP-01 for that app only:
+
+```shell
+dokku letsencrypt:set <app> dns-provider none
+```
+
+Setting the property to an empty string (`dokku letsencrypt:set <app> dns-provider ""`) deletes the app-level value and falls back to the global setting; `none` is the explicit opt-out. The `none` sentinel is also accepted at `--global` scope, where it behaves identically to leaving the property unset.
+
 ## Idempotent enable
 
 `dokku letsencrypt:enable <app>` is safe to call on every deploy. It only contacts the ACME server when one of the following is true:

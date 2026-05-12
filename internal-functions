@@ -176,12 +176,20 @@ fn-letsencrypt-acme-proxy-enable() {
 }
 
 fn-letsencrypt-computed-dns-provider() {
-  declare desc="get configured dns provider"
+  declare desc="get configured dns provider, with 'none' as an explicit opt-out sentinel"
   declare APP="$1"
+  local value
 
   value="$(fn-letsencrypt-dns-provider "$APP")"
+  if [[ "$value" == "none" ]]; then
+    echo ""
+    return
+  fi
   if [[ -z "$value" ]]; then
     value="$(fn-letsencrypt-global-dns-provider)"
+  fi
+  if [[ "$value" == "none" ]]; then
+    value=""
   fi
 
   echo "$value"
