@@ -116,6 +116,20 @@ teardown() {
   echo "$output" | grep -qi "no domains"
 }
 
+@test "letsencrypt:enable normalizes the per-app webroot perms to 0755" {
+  webroot="/var/lib/dokku/data/letsencrypt/$APP"
+  # Pre-stage the dir with the broken mode the bug describes, owned by the
+  # dokku user so the plugin (which runs as dokku via the dokku wrapper)
+  # can chmod it.
+  $SUDO install -d -o dokku -g dokku -m 0700 "$webroot"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+
+  perm="$($SUDO stat -c '%a' "$webroot")"
+  [ "$perm" = "755" ]
+}
+
 @test "letsencrypt:enable reissues when a new domain is added" {
   dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"
