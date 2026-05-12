@@ -45,7 +45,7 @@ cmd-letsencrypt-auto-renew() {
     while IFS=$'\t' read -r -a appExpiry; do
       if [[ ${appExpiry[4]} -lt 0 ]]; then
         dokku_log_info1 "${appExpiry[0]} needs renewal"
-        if ! dokku letsencrypt:enable "${appExpiry[0]}"; then
+        if ! (fn-letsencrypt-enable "${appExpiry[0]}"); then
           EXIT_CODE=1
         fi
       else
@@ -74,7 +74,7 @@ cmd-letsencrypt-auto-renew() {
 
     if [[ $time_to_renewal -lt 0 ]]; then
       dokku_log_info2 "Auto-renew ${APP}..."
-      dokku letsencrypt:enable "$APP"
+      fn-letsencrypt-enable "$APP"
     else
       days_left=$(fn-letsencrypt-format-timediff $time_to_renewal)
       dokku_log_verbose "$APP still has $days_left left before renewal"
