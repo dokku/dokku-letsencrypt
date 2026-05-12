@@ -118,8 +118,10 @@ teardown() {
 
 @test "letsencrypt:enable normalizes the per-app webroot perms to 0755" {
   webroot="/var/lib/dokku/data/letsencrypt/$APP"
-  $SUDO mkdir -p "$webroot"
-  $SUDO chmod 0700 "$webroot"
+  # Pre-stage the dir with the broken mode the bug describes, owned by the
+  # dokku user so the plugin (which runs as dokku via the dokku wrapper)
+  # can chmod it.
+  $SUDO install -d -o dokku -g dokku -m 0700 "$webroot"
 
   run dokku letsencrypt:enable "$APP"
   [ "$status" -eq 0 ]
