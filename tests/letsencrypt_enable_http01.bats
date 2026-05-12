@@ -64,6 +64,9 @@ teardown() {
 }
 
 @test "letsencrypt:enable is a no-op when a valid cert already exists" {
+  # Pebble issues 24h certs; shrink the grace period so the freshly issued
+  # cert is comfortably outside it.
+  dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"
   before="$(current_config_dir "$APP")"
 
@@ -77,6 +80,7 @@ teardown() {
 }
 
 @test "letsencrypt:enable --force reissues even when a valid cert exists" {
+  dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"
   before_dir="$(current_config_dir "$APP")"
 
@@ -91,6 +95,7 @@ teardown() {
 }
 
 @test "letsencrypt:enable reissues when a new domain is added" {
+  dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"
   assert_cert_san_contains "$APP" "$DOMAIN"
 
