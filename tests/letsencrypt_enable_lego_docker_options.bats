@@ -47,14 +47,14 @@ teardown() {
 }
 
 @test "lego exec DNS provider issues a cert with a script mounted via lego-docker-options" {
-  # Drop the exec script onto a path that's visible to both the dokku
-  # container (where this test runs) and the host docker daemon (which
-  # actually launches the lego container). DOKKU_HOST_ROOT is set by the
-  # compose stack so that $DOKKU_HOST_ROOT/<app>/... resolves on the host
-  # to the same file we write under /home/dokku/<app>/... here.
-  local script_in_container="/home/dokku/${APP}/letsencrypt/exec-dns.sh"
-  local script_on_host="${DOKKU_HOST_ROOT:-/home/dokku}/${APP}/letsencrypt/exec-dns.sh"
-  $SUDO mkdir -p "$(dirname "$script_in_container")"
+  # The lego container is spawned by the host docker daemon, so the -v
+  # source must resolve on the host: DOKKU_HOST_ROOT is set by the compose
+  # stack so $DOKKU_HOST_ROOT/<app>/... maps to the same file we write under
+  # /home/dokku/<app>/... here. We stage at the app home dir (owned by
+  # dokku:dokku from `apps:create`) and not in letsencrypt/, so dokku can
+  # still create letsencrypt/{account,certs} as itself.
+  local script_in_container="/home/dokku/${APP}/exec-dns.sh"
+  local script_on_host="${DOKKU_HOST_ROOT:-/home/dokku}/${APP}/exec-dns.sh"
   $SUDO cp "${BATS_TEST_DIRNAME}/lego/challtestsrv-dns.sh" "$script_in_container"
   $SUDO chmod 0755 "$script_in_container"
 
