@@ -94,6 +94,28 @@ teardown() {
   [ "$before_dir" = "$after_dir" ]
 }
 
+@test "letsencrypt:enable skips the '_' default-vhost domain when other domains are present" {
+  add_domain "$APP" "_"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+
+  assert_cert_exists "$APP"
+  assert_cert_san_contains "$APP" "$DOMAIN"
+
+  crt="$(cert_path_for "$APP")"
+  ! cert_san "$crt" | grep -qE '(^| )_($|,)'
+}
+
+@test "letsencrypt:enable fails when '_' is the only domain" {
+  dokku domains:clear "$APP"
+  set_domain "$APP" "_"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -qi "no domains"
+}
+
 @test "letsencrypt:enable reissues when a new domain is added" {
   dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"

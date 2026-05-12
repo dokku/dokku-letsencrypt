@@ -212,6 +212,10 @@ dokku domains:add 00-default mydomain.com
 dokku letsencrypt:enable 00-default
 ```
 
+## Default-vhost (`_`) domain
+
+Dokku 0.30.4 added support for the literal `_` domain as an Nginx default catch-all vhost. Let's Encrypt rejects `_` as an invalid identifier, so this plugin silently drops it from the certificate's SAN list and requests a certificate for the remaining domains. An app whose only domain is `_` cannot be enabled and falls into the existing "no domains detected" error path.
+
 ## DNS-01 Challenge
 
 > Functionality sponsored by [Orca Scan Ltd](https://orcascan.com/).
