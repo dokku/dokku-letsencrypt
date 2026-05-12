@@ -128,8 +128,16 @@ cmd-letsencrypt-cron-job() {
     fn-letsencrypt-cron-job-add
   elif [[ "$FLAG" == "--remove" ]]; then
     fn-letsencrypt-cron-job-remove
+  elif [[ -z "$FLAG" ]]; then
+    if [[ "$(fn-letsencrypt-is-autorenew-enabled)" == "true" ]]; then
+      dokku_log_info2_quiet "Auto-renew cron job is enabled"
+      dokku_log_verbose "Run 'dokku letsencrypt:cron-job --remove' to disable."
+    else
+      dokku_log_info2_quiet "Auto-renew cron job is not enabled"
+      dokku_log_verbose "Run 'dokku letsencrypt:cron-job --add' to enable."
+    fi
   else
-    dokku_log_verbose "Specify --add or --remove to modify the cron-job"
+    dokku_log_fail "Invalid flag '${FLAG}', specify --add, --remove, or no flag to display status."
   fi
 }
 

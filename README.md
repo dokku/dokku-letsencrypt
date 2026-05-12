@@ -27,7 +27,7 @@ $ dokku letsencrypt:help
     letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
     letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
     letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
-    letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
+    letsencrypt:cron-job [--add|--remove]   Add, remove, or display the status of the auto-renewal cronjob
     letsencrypt:disable <app>               Disable letsencrypt for an app
     letsencrypt:enable <app> [--force]      Enable or renew letsencrypt for an app (skipped when a valid certificate already exists unless --force is set)
     letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
@@ -101,6 +101,8 @@ This can be done using the following command:
 ```shell
 dokku letsencrypt:cron-job --add
 ```
+
+Running `dokku letsencrypt:cron-job` without a flag reports whether the auto-renewal cron job is currently enabled.
 
 ## Configuration
 

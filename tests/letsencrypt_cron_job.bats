@@ -36,3 +36,28 @@ teardown() {
   [ "$status" -eq 0 ]
   echo "$output" | grep -q "letsencrypt:auto-renew"
 }
+
+@test "cron-job without flags reports disabled when autorenew flag is absent" {
+  dokku letsencrypt:cron-job --remove >/dev/null 2>&1 || true
+
+  run dokku letsencrypt:cron-job
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Auto-renew cron job is not enabled"
+  echo "$output" | grep -q -- "--add"
+}
+
+@test "cron-job without flags reports enabled when autorenew flag is present" {
+  dokku letsencrypt:cron-job --add
+
+  run dokku letsencrypt:cron-job
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Auto-renew cron job is enabled"
+  ! echo "$output" | grep -q "not enabled"
+  echo "$output" | grep -q -- "--remove"
+}
+
+@test "cron-job rejects an unknown flag" {
+  run dokku letsencrypt:cron-job --bogus
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -q "Invalid flag"
+}
