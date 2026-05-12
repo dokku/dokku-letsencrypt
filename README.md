@@ -112,6 +112,7 @@ Variable             | Default           | Description
 `email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
 `graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
 `lego-args`          | (none)            | Extra arguments to pass to the `lego` CLI. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options. Previously named `lego-docker-args`; existing values are migrated automatically on plugin update.
+`lego-docker-options`| (none)            | Extra arguments to pass to `docker run` when starting the `lego` container (for volume mounts, extra env files, custom networks, etc.). Distinct from `lego-args`, which targets the `lego` CLI itself.
 `server`             | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 
 You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
@@ -228,7 +229,26 @@ dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_USER user
 dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_KEY key
 ```
 
-Due to limitations in how certain DNS providers work, environment variables _must not_ use the `_FILE` based method for referring to values in files.
+If a DNS provider documents `_FILE`-suffixed environment variables for reading secrets from files, mount the secret file into the `lego` container with `lego-docker-options` and set the corresponding `dns-provider-*_FILE` property to the in-container path. For example:
+
+```shell
+dokku letsencrypt:set --global lego-docker-options "-v /etc/dokku-letsencrypt/cloudflare-token:/secrets/cf-token:ro"
+dokku letsencrypt:set --global dns-provider-CLOUDFLARE_DNS_API_TOKEN_FILE /secrets/cf-token
+```
+
+### Using the `exec` DNS provider
+
+The `lego` [`exec` DNS provider](https://go-acme.github.io/lego/dns/exec/) shells out to a user-supplied script for creating and removing TXT records. The script must be reachable from inside the `lego` container at the path stored in the `EXEC_PATH` environment variable. Use `lego-docker-options` to mount it from the host:
+
+```shell
+# write the script on the dokku host, make it executable
+sudo install -m 0755 /path/on/host/dns.sh /var/lib/dokku/data/letsencrypt/exec-dns.sh
+
+# mount it into the lego container and point exec at it
+dokku letsencrypt:set --global dns-provider exec
+dokku letsencrypt:set --global lego-docker-options "-v /var/lib/dokku/data/letsencrypt/exec-dns.sh:/scripts/dns.sh:ro"
+dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
+```
 
 Please see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
 

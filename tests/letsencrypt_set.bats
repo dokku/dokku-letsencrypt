@@ -59,6 +59,15 @@ teardown() {
   [ "$status" -eq 0 ]
 }
 
+@test "lego-docker-options is accepted" {
+  run dokku letsencrypt:set "$APP" lego-docker-options "-v /tmp/foo:/foo:ro"
+  [ "$status" -eq 0 ]
+
+  run dokku letsencrypt:report "$APP" --letsencrypt-lego-docker-options
+  [ "$status" -eq 0 ]
+  [ "$output" = "-v /tmp/foo:/foo:ro" ]
+}
+
 @test "letsencrypt:report shows expected fields when nothing is set" {
   run dokku letsencrypt:report "$APP"
   [ "$status" -eq 0 ]
