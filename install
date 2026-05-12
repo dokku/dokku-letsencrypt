@@ -98,6 +98,8 @@ plugin-install() {
   pull-docker-image "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}"
 
   mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt"
+  mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt/accounts"
+  chmod 0700 "${DOKKU_LIB_ROOT}/data/letsencrypt/accounts"
   chown -R "${DOKKU_SYSTEM_USER}:${DOKKU_SYSTEM_GROUP}" "${DOKKU_LIB_ROOT}/data/letsencrypt"
   fn-plugin-property-setup "letsencrypt"
   fn-letsencrypt-migrate-properties

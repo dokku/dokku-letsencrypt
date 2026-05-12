@@ -207,6 +207,12 @@ While playing around with this plugin, you might want to switch to the let's enc
 
 When the ACME server returns a rate-limit response, `letsencrypt:enable` exits non-zero and prints a dedicated warning that points at the [Let's Encrypt rate-limits documentation](https://letsencrypt.org/docs/rate-limits/) and suggests switching to the staging server while iterating. The full lego output is still printed above the warning, so the specific limit that was hit (for example "too many certificates already issued" or "too many failed authorizations") remains visible.
 
+### Shared ACME account
+
+To stay clear of the [new accounts per IP](https://letsencrypt.org/docs/rate-limits/) limit (10 per 3 hours), the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/accounts` and mounts it into every `lego` invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
+
+When upgrading from a previous version of this plugin, the first `letsencrypt:enable` after the upgrade registers exactly one new account in the shared directory. Existing per-app account material under `$DOKKU_ROOT/<app>/letsencrypt/certs/<hash>/accounts/` is left in place so that `letsencrypt:revoke` for certificates issued before the upgrade can still find the original account.
+
 ## Generating a Cert for multiple domains
 
 Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
