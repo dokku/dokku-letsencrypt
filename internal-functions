@@ -130,7 +130,7 @@ fn-letsencrypt-acme-revoke() {
     return
   fi
 
-  local domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  local domain="$(fn-letsencrypt-app-domains "$APP" | xargs | awk '{print $1}')"
 
   # removing the certificate will automatically reconfigure nginx
   if [[ -z $DOKKU_APP_NAME ]]; then
@@ -258,6 +258,12 @@ fn-letsencrypt-lego-docker-options() {
   fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-options" ""
 }
 
+fn-letsencrypt-app-domains() {
+  declare desc="list app domains, skipping the '_' nginx default-vhost sentinel"
+  declare APP="$1"
+  get_app_domains "$APP" | grep -vxF '_' || true
+}
+
 fn-letsencrypt-check-email() {
   declare desc="Check if an e-mail address is provided globally or for the app"
   declare APP="$1"
@@ -278,7 +284,7 @@ fn-letsencrypt-config-string() {
 
   server="$(fn-letsencrypt-computed-server "$APP")"
 
-  domains="$(get_app_domains "$APP")"
+  domains="$(fn-letsencrypt-app-domains "$APP")"
   domain_args=''
   for domain in $domains; do
     domain_args="$domain_args --domains $domain"
@@ -318,7 +324,7 @@ fn-letsencrypt-configure-and-get-dir() {
   local le_root="$app_root/letsencrypt"
   mkdir -p "$DOKKU_ROOT/$APP/letsencrypt/account"
 
-  for domain in $(get_app_domains "$APP"); do
+  for domain in $(fn-letsencrypt-app-domains "$APP"); do
     dokku_log_verbose " - Domain '$domain'" >&2
   done
 
@@ -426,7 +432,7 @@ fn-letsencrypt-create-root() {
     fi
 
     sigil -f "$PLUGIN_AVAILABLE_PATH/letsencrypt/templates/default-nginx.conf.sigil" \
-      DOMAINS="$(get_app_domains "$APP" | xargs)" DOKKU_ROOT="$DOKKU_ROOT" APP="$APP" \
+      DOMAINS="$(fn-letsencrypt-app-domains "$APP" | xargs)" DOKKU_ROOT="$DOKKU_ROOT" APP="$APP" \
       NGINX_ACCESS_LOG_FORMAT="$NGINX_ACCESS_LOG_FORMAT" NGINX_ACCESS_LOG_PATH="$NGINX_ACCESS_LOG_PATH" \
       NGINX_ERROR_LOG_PATH="$NGINX_ERROR_LOG_PATH" \
       >"$DOKKU_ROOT/$APP/nginx.conf"
@@ -477,7 +483,7 @@ fn-letsencrypt-enable() {
 
   verify_app_name "$APP"
 
-  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  domain="$(fn-letsencrypt-app-domains "$APP" | xargs | awk '{print $1}')"
   if [[ -z "$domain" ]]; then
     dokku_log_warn "No domains detected for $APP"
     return 1
@@ -638,7 +644,7 @@ fn-letsencrypt-is-active() {
     return
   fi
 
-  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  domain="$(fn-letsencrypt-app-domains "$APP" | xargs | awk '{print $1}')"
 
   # check if certificate is identical to the current let's encrypt certificate by comparing SHA1 hashes
   local cert_sha1
@@ -733,7 +739,7 @@ fn-letsencrypt-symlink-certs() {
 
   # install the let's encrypt certificate for the app
   unset DOKKU_APP_NAME
-  domain="$(get_app_domains "$APP" | xargs | awk '{print $1}')"
+  domain="$(fn-letsencrypt-app-domains "$APP" | xargs | awk '{print $1}')"
   local fileSafeDomain
   fileSafeDomain="${domain/\*/_}" # wildcards are using *.example.com which have certificates named _.example.com
   dokku certs:add "$APP" "$config_dir/certificates/$fileSafeDomain.pem" "$config_dir/certificates/$fileSafeDomain.key"
