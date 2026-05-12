@@ -46,6 +46,18 @@ fn-letsencrypt-ensure-shared-accounts-dir() {
   chmod 0700 "$accounts_dir"
 }
 
+fn-letsencrypt-ensure-app-webroot-dir() {
+  declare desc="create the per-app ACME webroot with traversable group perms"
+  declare APP="$1"
+  local webroot
+  webroot="$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
+  mkdir -p "$webroot"
+  # nginx (www-data, in the dokku group) must traverse this directory to
+  # serve /.well-known/acme-challenge files. Pin the mode so a restrictive
+  # umask on the invoker (e.g. 0077) cannot leave it at 0700.
+  chmod 0750 "$webroot"
+}
+
 fn-letsencrypt-account-server-dir() {
   declare desc="lego-style directory name derived from the configured ACME server URL"
   declare APP="$1"
@@ -111,7 +123,7 @@ fn-letsencrypt-acme-execute-challenge() {
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
-  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
+  fn-letsencrypt-ensure-app-webroot-dir "$APP"
   fn-letsencrypt-ensure-shared-accounts-dir
   shared_accounts_lock="$(fn-letsencrypt-shared-accounts-dir)/.lock"
   {
@@ -186,7 +198,7 @@ fn-letsencrypt-acme-revoke() {
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
-  mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
+  fn-letsencrypt-ensure-app-webroot-dir "$APP"
   fn-letsencrypt-ensure-shared-accounts-dir
   shared_accounts_lock="$(fn-letsencrypt-shared-accounts-dir)/.lock"
 

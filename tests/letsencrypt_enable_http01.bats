@@ -116,6 +116,18 @@ teardown() {
   echo "$output" | grep -qi "no domains"
 }
 
+@test "letsencrypt:enable normalizes the per-app webroot perms to 0750" {
+  webroot="/var/lib/dokku/data/letsencrypt/$APP"
+  $SUDO mkdir -p "$webroot"
+  $SUDO chmod 0700 "$webroot"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+
+  perm="$($SUDO stat -c '%a' "$webroot")"
+  [ "$perm" = "750" ]
+}
+
 @test "letsencrypt:enable reissues when a new domain is added" {
   dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"
