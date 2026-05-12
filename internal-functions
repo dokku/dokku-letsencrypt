@@ -10,6 +10,23 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/config"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
+fn-letsencrypt-detect-rate-limit() {
+  declare desc="return 0 when the captured lego log shows an ACME rate-limit response"
+  declare LOG_PATH="$1"
+
+  [[ -f "$LOG_PATH" ]] || return 1
+  grep -qE 'urn:ietf:params:acme:error:rateLimited|\b429\b.*[Tt]oo [Mm]any [Rr]equests|too many certificates|too many failed authorizations' "$LOG_PATH"
+}
+
+fn-letsencrypt-log-rate-limit() {
+  declare desc="emit a friendly warning when the ACME server has rate-limited the request"
+  declare APP="$1"
+
+  dokku_log_warn "Let's Encrypt rate-limited this request."
+  dokku_log_warn "See https://letsencrypt.org/docs/rate-limits/ for the active limits and remediation guidance."
+  dokku_log_warn "Use 'dokku letsencrypt:set ${APP:-<app>} server staging' while iterating to avoid the production limits."
+}
+
 fn-letsencrypt-acme-execute-challenge() {
   declare desc="perform actual ACME validation procedure"
   declare APP="$1"
@@ -42,6 +59,8 @@ fn-letsencrypt-acme-execute-challenge() {
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
+  local lego_log
+  lego_log="$(mktemp)"
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
@@ -53,9 +72,9 @@ fn-letsencrypt-acme-execute-challenge() {
     -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
     "${docker_options_argv[@]}" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    "${config[@]}" run | sed "s/^/       /"
+    "${config[@]}" run 2>&1 | tee "$lego_log" | sed "s/^/       /"
 
-  local exit_code=$?
+  local exit_code=${PIPESTATUS[0]}
   set -e
 
   if [[ "$FAKE_NGINX_CONF" == "true" ]]; then
@@ -63,9 +82,15 @@ fn-letsencrypt-acme-execute-challenge() {
   fi
 
   if [[ $exit_code != 0 ]]; then
+    if fn-letsencrypt-detect-rate-limit "$lego_log"; then
+      fn-letsencrypt-log-rate-limit "$APP"
+    fi
+    rm -f "$lego_log"
     dokku_log_info1 "Certificate retrieval failed!"
     return $exit_code
   fi
+
+  rm -f "$lego_log"
 
   # got certificate
   dokku_log_info1 "Certificate retrieved successfully."
@@ -103,6 +128,8 @@ fn-letsencrypt-acme-revoke() {
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
+  local lego_log
+  lego_log="$(mktemp)"
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
@@ -115,9 +142,9 @@ fn-letsencrypt-acme-revoke() {
     -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
     "${docker_options_argv[@]}" \
     "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    "${config[@]}" revoke | sed "s/^/       /"
+    "${config[@]}" revoke 2>&1 | tee "$lego_log" | sed "s/^/       /"
 
-  local exit_code=$?
+  local exit_code=${PIPESTATUS[0]}
   set -e
 
   # handle return codes
@@ -126,9 +153,15 @@ fn-letsencrypt-acme-revoke() {
     dokku_log_info1 "Certificate revoked successfully."
   else
     # error - don't try to link certificates
-    dokku_log_info1 "Certificate revocation failed (code $simple_result)!"
+    if fn-letsencrypt-detect-rate-limit "$lego_log"; then
+      fn-letsencrypt-log-rate-limit "$APP"
+    fi
+    rm -f "$lego_log"
+    dokku_log_info1 "Certificate revocation failed (code $exit_code)!"
     return
   fi
+
+  rm -f "$lego_log"
 
   local domain="$(fn-letsencrypt-app-domains "$APP" | xargs | awk '{print $1}')"
 

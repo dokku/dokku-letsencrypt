@@ -205,6 +205,8 @@ dokku letsencrypt:enable foo
 
 While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku letsencrypt:set myapp server  staging` to enjoy much higher rate limits and switching back to the real server by running `dokku letsencrypt:set myapp server` once you are ready.
 
+When the ACME server returns a rate-limit response, `letsencrypt:enable` exits non-zero and prints a dedicated warning that points at the [Let's Encrypt rate-limits documentation](https://letsencrypt.org/docs/rate-limits/) and suggests switching to the staging server while iterating. The full lego output is still printed above the warning, so the specific limit that was hit (for example "too many certificates already issued" or "too many failed authorizations") remains visible.
+
 ## Generating a Cert for multiple domains
 
 Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
