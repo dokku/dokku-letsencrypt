@@ -127,3 +127,25 @@ config_hash_dirs() {
   $SUDO test -d "$base" || return 0
   $SUDO find "$base" -mindepth 1 -maxdepth 1 -type d -print
 }
+
+shared_accounts_dir() {
+  echo "/var/lib/dokku/data/letsencrypt/accounts"
+}
+
+# lego stores accounts under <accounts>/<host>/<email>/, with ':' in the host
+# segment replaced by '_'. This mirrors the bash logic in
+# fn-letsencrypt-account-server-dir.
+shared_account_server_segment() {
+  local server="$1"
+  server="${server#http://}"
+  server="${server#https://}"
+  server="${server%%/*}"
+  echo "${server//:/_}"
+}
+
+shared_account_dir_for() {
+  local server="$1" email="$2"
+  local server_seg
+  server_seg="$(shared_account_server_segment "$server")"
+  echo "$(shared_accounts_dir)/${server_seg}/${email}"
+}

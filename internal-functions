@@ -27,6 +27,53 @@ fn-letsencrypt-log-rate-limit() {
   dokku_log_warn "Use 'dokku letsencrypt:set ${APP:-<app>} server staging' while iterating to avoid the production limits."
 }
 
+fn-letsencrypt-shared-accounts-dir() {
+  declare desc="dokku-host path to the shared lego accounts directory"
+  echo "$DOKKU_LIB_ROOT/data/letsencrypt/accounts"
+}
+
+fn-letsencrypt-shared-accounts-host-dir() {
+  declare desc="docker-host path to the shared lego accounts directory"
+  echo "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/accounts"
+}
+
+fn-letsencrypt-ensure-shared-accounts-dir() {
+  declare desc="create the shared lego accounts directory with strict permissions"
+  local accounts_dir
+  accounts_dir="$(fn-letsencrypt-shared-accounts-dir)"
+  mkdir -p "$accounts_dir"
+  # account keys live here; restrict to the dokku user.
+  chmod 0700 "$accounts_dir"
+}
+
+fn-letsencrypt-account-server-dir() {
+  declare desc="lego-style directory name derived from the configured ACME server URL"
+  declare APP="$1"
+  local server host
+
+  server="$(fn-letsencrypt-computed-server "$APP")"
+  host="${server#http://}"
+  host="${host#https://}"
+  host="${host%%/*}"
+  # lego stores accounts under a host segment with ':' replaced by '_'
+  host="${host//:/_}"
+  echo "$host"
+}
+
+fn-letsencrypt-shared-account-exists() {
+  declare desc="return 0 when the shared accounts dir holds an account for this app's (server, email)"
+  declare APP="$1"
+  local server_dir email accounts_dir
+
+  server_dir="$(fn-letsencrypt-account-server-dir "$APP")"
+  email="$(fn-letsencrypt-computed-email "$APP")"
+  if [[ -z "$server_dir" ]] || [[ -z "$email" ]]; then
+    return 1
+  fi
+  accounts_dir="$(fn-letsencrypt-shared-accounts-dir)"
+  [[ -f "$accounts_dir/$server_dir/$email/account.json" ]]
+}
+
 fn-letsencrypt-acme-execute-challenge() {
   declare desc="perform actual ACME validation procedure"
   declare APP="$1"
@@ -59,20 +106,26 @@ fn-letsencrypt-acme-execute-challenge() {
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
-  local lego_log
+  local lego_log shared_accounts_lock
   lego_log="$(mktemp)"
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
-  docker run --rm \
-    --env-file "$container_config_dir/docker.env" \
-    --user $DOKKU_UID:$DOKKU_GID \
-    -v "$host_config_dir:/certs" \
-    -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
-    "${docker_options_argv[@]}" \
-    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    "${config[@]}" run 2>&1 | tee "$lego_log" | sed "s/^/       /"
+  fn-letsencrypt-ensure-shared-accounts-dir
+  shared_accounts_lock="$(fn-letsencrypt-shared-accounts-dir)/.lock"
+  {
+    flock -x 9
+    docker run --rm \
+      --env-file "$container_config_dir/docker.env" \
+      --user $DOKKU_UID:$DOKKU_GID \
+      -v "$host_config_dir:/certs" \
+      -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
+      -v "$(fn-letsencrypt-shared-accounts-host-dir):/certs/accounts" \
+      "${docker_options_argv[@]}" \
+      "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
+      "${config[@]}" run 2>&1
+  } 9>"$shared_accounts_lock" | tee "$lego_log" | sed "s/^/       /"
 
   local exit_code=${PIPESTATUS[0]}
   set -e
@@ -128,21 +181,36 @@ fn-letsencrypt-acme-revoke() {
 
   # run letsencrypt as a docker container using "certonly" mode
   # port 80 of the standalone webserver will be forwarded by the proxy
-  local lego_log
+  local lego_log shared_accounts_lock
   lego_log="$(mktemp)"
   set +e
   export DOKKU_UID=$(id -u)
   export DOKKU_GID=$(id -g)
   mkdir -p "$DOKKU_LIB_ROOT/data/letsencrypt/$APP"
-  docker run --rm \
-    --env-file "$container_config_dir/docker.env" \
-    --user $DOKKU_UID:$DOKKU_GID \
-    -p "$acme_port:$acme_port" \
-    -v "$host_config_dir:/certs" \
-    -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
-    "${docker_options_argv[@]}" \
-    "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
-    "${config[@]}" revoke 2>&1 | tee "$lego_log" | sed "s/^/       /"
+  fn-letsencrypt-ensure-shared-accounts-dir
+  shared_accounts_lock="$(fn-letsencrypt-shared-accounts-dir)/.lock"
+
+  # Only overlay the shared accounts dir when it holds the matching
+  # (server, email) account; otherwise fall back to the per-app account
+  # so revocation of certs issued before the shared-account change still works.
+  local account_volume_args=()
+  if fn-letsencrypt-shared-account-exists "$APP"; then
+    account_volume_args=(-v "$(fn-letsencrypt-shared-accounts-host-dir):/certs/accounts")
+  fi
+
+  {
+    flock -x 9
+    docker run --rm \
+      --env-file "$container_config_dir/docker.env" \
+      --user $DOKKU_UID:$DOKKU_GID \
+      -p "$acme_port:$acme_port" \
+      -v "$host_config_dir:/certs" \
+      -v "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/$APP:/webroot" \
+      "${account_volume_args[@]}" \
+      "${docker_options_argv[@]}" \
+      "${PLUGIN_IMAGE}:${PLUGIN_IMAGE_VERSION}" \
+      "${config[@]}" revoke 2>&1
+  } 9>"$shared_accounts_lock" | tee "$lego_log" | sed "s/^/       /"
 
   local exit_code=${PIPESTATUS[0]}
   set -e
@@ -355,7 +423,6 @@ fn-letsencrypt-configure-and-get-dir() {
 
   local app_root="$DOKKU_ROOT/$APP"
   local le_root="$app_root/letsencrypt"
-  mkdir -p "$DOKKU_ROOT/$APP/letsencrypt/account"
 
   for domain in $(fn-letsencrypt-app-domains "$APP"); do
     dokku_log_verbose " - Domain '$domain'" >&2
