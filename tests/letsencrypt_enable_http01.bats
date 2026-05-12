@@ -130,6 +130,44 @@ teardown() {
   [ "$perm" = "755" ]
 }
 
+@test "letsencrypt:enable auto-injects http:80 when only a non-80 http mapping exists" {
+  dokku ports:set "$APP" http:8080:8080
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qi "Adding http:80:8080 port mapping"
+
+  assert_cert_exists "$APP"
+  assert_cert_issued_by_pebble "$APP"
+
+  run dokku ports:report "$APP" --ports-map
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qF "http:80:8080"
+  echo "$output" | grep -qF "http:8080:8080"
+}
+
+@test "letsencrypt:enable leaves the port map untouched when http:80 is already mapped" {
+  dokku ports:set "$APP" http:80:5000
+
+  before="$(dokku ports:report "$APP" --ports-map)"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+  ! echo "$output" | grep -qi "Adding http:80"
+
+  after="$(dokku ports:report "$APP" --ports-map)"
+  [ "$before" = "$after" ]
+}
+
+@test "letsencrypt:enable fails with a helpful error when no http or https mapping exists" {
+  dokku ports:set "$APP" tcp:2222:2222
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -ne 0 ]
+  echo "$output" | grep -qi "no http or https proxy port mapping"
+  echo "$output" | grep -qi "dokku ports:add"
+}
+
 @test "letsencrypt:enable reissues when a new domain is added" {
   dokku letsencrypt:set "$APP" graceperiod 60
   dokku letsencrypt:enable "$APP"

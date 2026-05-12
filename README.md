@@ -175,6 +175,8 @@ When securing Dockerfile and Image-based deploys with dokku-letsencrypt, be awar
 
 For Dockerfile deploys - as well as those via `git:from-image` - Dokku will determine which ports a container exposes (using `EXPOSE`) and will proxy them on the same port numbers on the host. If the Dockerfile exposes another port than 443, then HTTPS port 443 **needs to be manually configured** using the `dokku ports:*` commands in order for certificate validation and browsing to the app via HTTPS to work.
 
+The HTTP-01 challenge used by Let's Encrypt also needs the app to be reachable on port 80. When `letsencrypt:enable` runs and the app's proxy port-map has no `http:80:*` entry, the plugin will inject one automatically using the container port from the first existing `http:*:*` (or `https:*:*`) mapping, so the ACME challenge can be served from nginx. The new mapping is persisted so subsequent renewals do not need to re-add it. If no `http` or `https` mapping exists at all, `letsencrypt:enable` exits with an error pointing to `dokku ports:add` instead of issuing a request that would fail at the ACME server. DNS-01 deployments skip this check because they do not depend on a port 80 listener.
+
 A full workflow for creating a new Dockerfile/Image-based deployment (assuming the app is listening/exposed on port 5555) with `dokku-letsencrypt` would be:
 
 1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote.
@@ -185,7 +187,7 @@ After these steps, the output of `dokku ports:report myapp` should look like thi
 
 ```
 =====> myapp ports information
-       Ports map:                     https:443:5555
+       Ports map:                     http:80:5555 https:443:5555
        Ports map detected:            https:5555:5555
 ```
 
