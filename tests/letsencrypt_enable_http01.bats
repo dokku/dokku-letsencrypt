@@ -62,3 +62,53 @@ teardown() {
   [ "$status" -ne 0 ]
   echo "$output" | grep -qi "no domains"
 }
+
+@test "letsencrypt:enable is a no-op when a valid cert already exists" {
+  # Pebble issues 24h certs; shrink the grace period so the freshly issued
+  # cert is comfortably outside it.
+  dokku letsencrypt:set "$APP" graceperiod 60
+  dokku letsencrypt:enable "$APP"
+  before="$(current_config_dir "$APP")"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qi "still valid"
+  ! echo "$output" | grep -qi "Certificate retrieved successfully"
+
+  after="$(current_config_dir "$APP")"
+  [ "$before" = "$after" ]
+}
+
+@test "letsencrypt:enable --force reissues even when a valid cert exists" {
+  dokku letsencrypt:set "$APP" graceperiod 60
+  dokku letsencrypt:enable "$APP"
+  before_dir="$(current_config_dir "$APP")"
+
+  run dokku letsencrypt:enable "$APP" --force
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qi "Certificate retrieved successfully"
+  ! echo "$output" | grep -qi "still valid"
+
+  after_dir="$(current_config_dir "$APP")"
+  # no config changed, so the same hash dir should still be in use
+  [ "$before_dir" = "$after_dir" ]
+}
+
+@test "letsencrypt:enable reissues when a new domain is added" {
+  dokku letsencrypt:set "$APP" graceperiod 60
+  dokku letsencrypt:enable "$APP"
+  assert_cert_san_contains "$APP" "$DOMAIN"
+
+  EXTRA_DOMAIN="extra.${APP}.${TEST_DOMAIN_BASE}"
+  register_a_record "$EXTRA_DOMAIN"
+  add_domain "$APP" "$EXTRA_DOMAIN"
+
+  run dokku letsencrypt:enable "$APP"
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qi "Certificate retrieved successfully"
+
+  assert_cert_san_contains "$APP" "$DOMAIN"
+  assert_cert_san_contains "$APP" "$EXTRA_DOMAIN"
+
+  clear_a_record "$EXTRA_DOMAIN"
+}

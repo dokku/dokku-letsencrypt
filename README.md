@@ -29,7 +29,7 @@ $ dokku letsencrypt:help
     letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
     letsencrypt:cron-job <--add|--remove>   Add or remove an auto-renewal cronjob
     letsencrypt:disable <app>               Disable letsencrypt for an app
-    letsencrypt:enable <app>                Enable or renew letsencrypt for an app
+    letsencrypt:enable <app> [--force]      Enable or renew letsencrypt for an app (skipped when a valid certificate already exists unless --force is set)
     letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
     letsencrypt:report [<app>|--global]     Display a letsencrypt report for one or more apps
     letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
@@ -252,15 +252,23 @@ dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
 
 Please see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
 
-## Conditional enabling
+## Idempotent enable
 
-`dokku letsencrypt:enable <app>` enables letsencrypt for an application or renews the certificate. This may lead to hitting rate limits with letsencrypt.
+`dokku letsencrypt:enable <app>` is safe to call on every deploy. It only contacts the ACME server when one of the following is true:
 
-To avoid renewals, for example in a continuous deployment scenario, you could first check if letsencrypt has already been enabled for the app:
+- the app does not currently have a Let's Encrypt certificate installed
+- the app's domains, email, server, `lego-args`, `lego-docker-options`, or `dns-provider` have changed since the certificate was issued
+- the certificate is within its renewal grace period (see the `graceperiod` configuration variable)
+
+In every other case the command exits successfully without touching nginx, the lego container, or the ACME server. This avoids running into Let's Encrypt rate limits when the same app is redeployed many times in a short window (for example, CI-driven review apps).
+
+To force a new certificate request even when the existing certificate is still valid, pass `--force`:
 
 ```shell
-dokku letsencrypt:active <app> || dokku letsencrypt:enable <app>
+dokku letsencrypt:enable <app> --force
 ```
+
+This is useful when copying certificates between servers (the host did not issue the cert, so the ACME account on the new host has no record of it) or when manually rotating an existing certificate.
 
 ## License
 
