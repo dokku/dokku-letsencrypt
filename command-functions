@@ -164,16 +164,31 @@ cmd-letsencrypt-enable() {
   declare cmd="letsencrypt:enable"
   [[ "$1" == "$cmd" ]] && shift 1
 
+  local FORCE=false
+  local positional=()
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --force | -f)
+        FORCE=true
+        ;;
+      *)
+        positional+=("$arg")
+        ;;
+    esac
+  done
+  set -- "${positional[@]}"
+
   # Support --app/$DOKKU_APP_NAME flag by reordering args into "$cmd $DOKKU_APP_NAME $@"
   [[ -n "$DOKKU_APP_NAME" ]] && set -- $DOKKU_APP_NAME $@
 
   declare APP="$1"
   if [[ "$APP" == "--all" ]]; then
     for app in $(dokku_apps); do
-      fn-letsencrypt-enable "$app"
+      fn-letsencrypt-enable "$app" "$FORCE"
     done
   else
-    fn-letsencrypt-enable "$APP"
+    fn-letsencrypt-enable "$APP" "$FORCE"
   fi
 }
 

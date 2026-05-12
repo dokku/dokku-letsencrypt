@@ -32,7 +32,7 @@ fn-help-content() {
     letsencrypt:cleanup <app>, Remove stale certificate directories for app
     letsencrypt:cron-job [--add --remove], Add or remove a cron job that periodically calls auto-renew.
     letsencrypt:disable <app>, Disable letsencrypt for an app
-    letsencrypt:enable <app>, Enable or renew letsencrypt for an app
+    letsencrypt:enable <app> [--force], Enable or renew letsencrypt for an app (skipped when a valid certificate already exists unless --force is set)
     letsencrypt:help, Display letsencrypt help
     letsencrypt:list, List letsencrypt-secured apps with certificate expiry times
     letsencrypt:report [<app>|--global] [<flag>] [--format json], Display a letsencrypt report for one or more apps
