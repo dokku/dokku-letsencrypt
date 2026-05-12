@@ -15,8 +15,8 @@ teardown() {
   cleanup_app "$APP"
 }
 
-@test "lego-docker-args is appended to the lego command line" {
-  dokku letsencrypt:set "$APP" lego-docker-args "--cert.timeout=45"
+@test "lego-args is appended to the lego command line" {
+  dokku letsencrypt:set "$APP" lego-args "--cert.timeout=45"
   run dokku letsencrypt:enable "$APP"
   [ "$status" -eq 0 ]
 
@@ -25,11 +25,11 @@ teardown() {
   $SUDO grep -qF -- "--cert.timeout=45" "$current/config"
 }
 
-@test "changing lego-docker-args changes the config hash" {
+@test "changing lego-args changes the config hash" {
   dokku letsencrypt:enable "$APP"
   baseline_hash="$(basename "$(current_config_dir "$APP")")"
 
-  dokku letsencrypt:set "$APP" lego-docker-args "--cert.timeout=45"
+  dokku letsencrypt:set "$APP" lego-args "--cert.timeout=45"
   dokku letsencrypt:enable "$APP"
   new_hash="$(basename "$(current_config_dir "$APP")")"
 

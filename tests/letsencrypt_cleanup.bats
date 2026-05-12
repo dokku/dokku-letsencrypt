@@ -20,7 +20,7 @@ teardown() {
   baseline_hash="$(basename "$(current_config_dir "$APP")")"
 
   # change config to force a new hash, then enable again
-  dokku letsencrypt:set "$APP" lego-docker-args "--cert.timeout=45"
+  dokku letsencrypt:set "$APP" lego-args "--cert.timeout=45"
   dokku letsencrypt:enable "$APP"
   new_hash="$(basename "$(current_config_dir "$APP")")"
   [ "$baseline_hash" != "$new_hash" ]
