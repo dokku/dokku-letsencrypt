@@ -25,9 +25,16 @@ fn-letsencrypt-migrate-properties() {
 
   value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_ARGS" || true)
   if [[ -n "$value" ]]; then
-    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-docker-args property."
-    fn-plugin-property-write "letsencrypt" "--global" "lego-docker-args" "$value"
+    dokku_log_info1 "Migrating deprecated global DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-args property."
+    fn-plugin-property-write "letsencrypt" "--global" "lego-args" "$value"
     DOKKU_QUIET_OUTPUT=1 config_unset --global DOKKU_LETSENCRYPT_ARGS || true
+  fi
+
+  value="$(fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-args" "")"
+  if [[ -n "$value" ]]; then
+    dokku_log_info1 "Migrating deprecated global lego-docker-args property to lego-args."
+    fn-plugin-property-write "letsencrypt" "--global" "lego-args" "$value"
+    fn-plugin-property-delete "letsencrypt" "--global" "lego-docker-args"
   fi
 
   value=$(plugn trigger config-get-global "DOKKU_LETSENCRYPT_SERVER" || true)
@@ -54,9 +61,16 @@ fn-letsencrypt-migrate-properties() {
 
     value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_ARGS || true)"
     if [[ -n "$value" ]]; then
-      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-docker-args property for $app."
-      fn-plugin-property-write "letsencrypt" "$app" "lego-docker-args" "$value"
+      dokku_log_info1 "Migrating deprecated DOKKU_LETSENCRYPT_ARGS to letsencrypt lego-args property for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "lego-args" "$value"
       DOKKU_QUIET_OUTPUT=1 config_unset --no-restart "$app" "DOKKU_LETSENCRYPT_ARGS" || true
+    fi
+
+    value="$(fn-plugin-property-get-default "letsencrypt" "$app" "lego-docker-args" "")"
+    if [[ -n "$value" ]]; then
+      dokku_log_info1 "Migrating deprecated lego-docker-args property to lego-args for $app."
+      fn-plugin-property-write "letsencrypt" "$app" "lego-args" "$value"
+      fn-plugin-property-delete "letsencrypt" "$app" "lego-docker-args"
     fi
 
     value="$(plugn trigger config-get "$app" DOKKU_LETSENCRYPT_SERVER || true)"

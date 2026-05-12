@@ -190,29 +190,29 @@ fn-letsencrypt-dns-provider() {
   fn-plugin-property-get-default "letsencrypt" "$APP" "dns-provider" ""
 }
 
-fn-letsencrypt-computed-lego-docker-args() {
-  declare desc="get configured lego docker args"
+fn-letsencrypt-computed-lego-args() {
+  declare desc="get configured lego cli args"
   declare APP="$1"
 
-  value="$(fn-letsencrypt-lego-docker-args "$APP")"
+  value="$(fn-letsencrypt-lego-args "$APP")"
   if [[ -z "$value" ]]; then
-    value="$(fn-letsencrypt-global-lego-docker-args)"
+    value="$(fn-letsencrypt-global-lego-args)"
   fi
 
   echo "$value"
 }
 
-fn-letsencrypt-global-lego-docker-args() {
-  declare desc="get configured lego docker args"
+fn-letsencrypt-global-lego-args() {
+  declare desc="get configured lego cli args"
 
-  fn-plugin-property-get-default "letsencrypt" "--global" "lego-docker-args" ""
+  fn-plugin-property-get-default "letsencrypt" "--global" "lego-args" ""
 }
 
-fn-letsencrypt-lego-docker-args() {
-  declare desc="get configured lego docker args"
+fn-letsencrypt-lego-args() {
+  declare desc="get configured lego cli args"
   declare APP="$1"
 
-  fn-plugin-property-get-default "letsencrypt" "$APP" "lego-docker-args" ""
+  fn-plugin-property-get-default "letsencrypt" "$APP" "lego-args" ""
 }
 
 fn-letsencrypt-check-email() {
@@ -254,7 +254,7 @@ fn-letsencrypt-configure-and-get-dir() {
   # lego --cert.timeout is in seconds and defaults to 30
   cert_timeout=30
   email="$(fn-letsencrypt-computed-email "$APP")"
-  extra_args="$(fn-letsencrypt-computed-lego-docker-args "$APP")"
+  extra_args="$(fn-letsencrypt-computed-lego-args "$APP")"
   config="--pem --accept-tos --cert.timeout $cert_timeout --path /certs --server $server --email $email $extra_args $domain_args"
 
   dns_provider="$(fn-letsencrypt-computed-dns-provider "$APP")"

@@ -250,9 +250,9 @@ cmd-letsencrypt-report-single() {
     "--letsencrypt-computed-graceperiod: $(fn-letsencrypt-computed-graceperiod "$APP")"
     "--letsencrypt-global-graceperiod: $(fn-letsencrypt-global-graceperiod)"
     "--letsencrypt-graceperiod: $(fn-letsencrypt-graceperiod "$APP")"
-    "--letsencrypt-computed-lego-docker-args: $(fn-letsencrypt-computed-lego-docker-args "$APP")"
-    "--letsencrypt-global-lego-docker-args: $(fn-letsencrypt-global-lego-docker-args)"
-    "--letsencrypt-lego-docker-args: $(fn-letsencrypt-lego-docker-args "$APP")"
+    "--letsencrypt-computed-lego-args: $(fn-letsencrypt-computed-lego-args "$APP")"
+    "--letsencrypt-global-lego-args: $(fn-letsencrypt-global-lego-args)"
+    "--letsencrypt-lego-args: $(fn-letsencrypt-lego-args "$APP")"
     "--letsencrypt-computed-server: $(fn-letsencrypt-computed-server "$APP")"
     "--letsencrypt-global-server: $(fn-letsencrypt-global-server)"
     "--letsencrypt-server: $(fn-letsencrypt-server "$APP")"
@@ -323,13 +323,13 @@ cmd-letsencrypt-set() {
   declare cmd="letsencrypt:set"
   [[ "$1" == "$cmd" ]] && shift 1
   declare APP="$1" KEY="$2" VALUE="$3"
-  local VALID_KEYS=("dns-provider" "email" "graceperiod" "server" "lego-docker-args")
+  local VALID_KEYS=("dns-provider" "email" "graceperiod" "server" "lego-args")
   [[ "$APP" == "--global" ]] || verify_app_name "$APP"
 
   [[ -z "$KEY" ]] && dokku_log_fail "No key specified"
 
   if ! fn-in-array "$KEY" "${VALID_KEYS[@]}" && [[ "$KEY" != dns-provider-* ]]; then
-    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, dns-provider-*, email, graceperiod, server, lego-docker-args"
+    dokku_log_fail "Invalid key specified, valid keys include: dns-provider, dns-provider-*, email, graceperiod, server, lego-args"
   fi
 
   if [[ -n "$VALUE" ]]; then

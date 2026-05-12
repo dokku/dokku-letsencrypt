@@ -44,6 +44,6 @@ dokku letsencrypt:set --global email "${LETSENCRYPT_TEST_EMAIL}"
 # zone-discovery step fails. `--dns.propagation-wait` replaces the SOA
 # walk with a fixed wait, which is plenty since challtestsrv applies
 # `/set-txt` writes immediately.
-dokku letsencrypt:set --global lego-docker-args "--dns.resolvers=172.17.0.1:8053 --dns.propagation-wait=1s"
+dokku letsencrypt:set --global lego-args "--dns.resolvers=172.17.0.1:8053 --dns.propagation-wait=1s"
 
 log "Setup complete"

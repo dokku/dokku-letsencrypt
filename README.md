@@ -111,7 +111,7 @@ Variable             | Default           | Description
 `dns-provider`       | (none)            | The name of a [valid lego dns-provider](https://go-acme.github.io/lego/dns/)
 `email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
 `graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
-`lego-docker-args`   | (none)            | Extra arguments to pass via `docker run`. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options.
+`lego-args`          | (none)            | Extra arguments to pass to the `lego` CLI. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options. Previously named `lego-docker-args`; existing values are migrated automatically on plugin update.
 `server`             | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
 
 You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
