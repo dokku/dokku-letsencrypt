@@ -146,17 +146,18 @@ teardown() {
   echo "$output" | grep -qF "http:8080:8080"
 }
 
-@test "letsencrypt:enable leaves the port map untouched when http:80 is already mapped" {
+@test "letsencrypt:enable does not re-add http:80 when it is already mapped" {
   dokku ports:set "$APP" http:80:5000
-
-  before="$(dokku ports:report "$APP" --ports-map)"
 
   run dokku letsencrypt:enable "$APP"
   [ "$status" -eq 0 ]
   ! echo "$output" | grep -qi "Adding http:80"
 
-  after="$(dokku ports:report "$APP" --ports-map)"
-  [ "$before" = "$after" ]
+  run dokku ports:report "$APP" --ports-map
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -qF "http:80:5000"
+  # Exactly one http:80 entry — the cert install adds https:443 but must not duplicate http:80
+  [ "$(echo "$output" | tr ' ' '\n' | grep -c '^http:80:')" -eq 1 ]
 }
 
 @test "letsencrypt:enable fails with a helpful error when no http or https mapping exists" {
