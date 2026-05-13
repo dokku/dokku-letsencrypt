@@ -99,14 +99,23 @@ plugin-install() {
 
   mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt"
   chmod 0755 "${DOKKU_LIB_ROOT}/data/letsencrypt"
+  # Migrate the legacy autorenew marker into the --global container introduced
+  # to keep plugin-owned entries from colliding with same-named apps. Drop the
+  # legacy copy unconditionally once the new one exists.
+  mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt/--global"
+  if [[ -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew" && ! -e "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/autorenew" ]]; then
+    touch "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/autorenew"
+  fi
+  rm -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
   # Heal per-app ACME webroots whose mode was previously left at the invoker's
   # umask (commonly 0700 under sudo). nginx must be able to read these to
   # serve HTTP-01 challenges; the files are public by design. Skip the
-  # dedicated `accounts/` dir, which is locked down to 0700 just below.
+  # `--global` container, whose `accounts/` leaf is locked down to 0700 just
+  # below.
   find "${DOKKU_LIB_ROOT}/data/letsencrypt" -mindepth 1 -maxdepth 1 -type d \
-    ! -name accounts -exec chmod 0755 {} +
-  mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt/accounts"
-  chmod 0700 "${DOKKU_LIB_ROOT}/data/letsencrypt/accounts"
+    ! -name '--global' -exec chmod 0755 {} +
+  mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/accounts"
+  chmod 0700 "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/accounts"
   chown -R "${DOKKU_SYSTEM_USER}:${DOKKU_SYSTEM_GROUP}" "${DOKKU_LIB_ROOT}/data/letsencrypt"
   fn-plugin-property-setup "letsencrypt"
   fn-letsencrypt-migrate-properties

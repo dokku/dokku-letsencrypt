@@ -29,12 +29,12 @@ fn-letsencrypt-log-rate-limit() {
 
 fn-letsencrypt-shared-accounts-dir() {
   declare desc="dokku-host path to the shared lego accounts directory"
-  echo "$DOKKU_LIB_ROOT/data/letsencrypt/accounts"
+  echo "$DOKKU_LIB_ROOT/data/letsencrypt/--global/accounts"
 }
 
 fn-letsencrypt-shared-accounts-host-dir() {
   declare desc="docker-host path to the shared lego accounts directory"
-  echo "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/accounts"
+  echo "$DOKKU_LIB_HOST_ROOT/data/letsencrypt/--global/accounts"
 }
 
 fn-letsencrypt-ensure-shared-accounts-dir() {
@@ -538,7 +538,8 @@ fn-letsencrypt-cron-job-enabled() {
 fn-letsencrypt-cron-job-add() {
   declare desc="Add auto-renew cronjob to dokku user's crontab"
 
-  touch "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
+  mkdir -p "${DOKKU_LIB_ROOT}/data/letsencrypt/--global"
+  touch "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/autorenew"
   if fn-letsencrypt-cron-job-enabled; then
     plugn trigger cron-write
   else
@@ -553,7 +554,7 @@ fn-letsencrypt-cron-job-add() {
 fn-letsencrypt-cron-job-remove() {
   declare desc="Remove auto-renew cronjob from dokku user's crontab"
 
-  rm -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew"
+  rm -f "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/autorenew"
   if fn-letsencrypt-cron-job-enabled; then
     plugn trigger cron-write
   else
@@ -602,7 +603,7 @@ fn-letsencrypt-is-autorenew-enabled() {
   declare desc="check if autorenew is enabled"
   local enabled=false
 
-  if [[ -f "${DOKKU_LIB_ROOT}/data/letsencrypt/autorenew" ]]; then
+  if [[ -f "${DOKKU_LIB_ROOT}/data/letsencrypt/--global/autorenew" ]]; then
     enabled=true
   fi
 
