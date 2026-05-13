@@ -966,3 +966,66 @@ fn-letsencrypt-report-emit-json() {
   done
   echo "$json_output"
 }
+
+fn-letsencrypt-report-add-dns-provider-keys() {
+  declare desc="append per-key dns-provider-* rows to flag_map (computed/global/app), redacting values when LETSENCRYPT_REPORT_SANITIZE=true"
+  declare flag_map_name="$1" APP="$2"
+  local -n flag_map_ref="$flag_map_name"
+
+  local sanitize="${LETSENCRYPT_REPORT_SANITIZE:-false}"
+  local line key value
+  declare -A global_values=()
+  declare -A app_values=()
+  declare -A keyset=()
+
+  while IFS= read -r line; do
+    [[ -n "$line" ]] || continue
+    key="$(cut -d" " -f1 <<<"$line")"
+    if [[ "$key" == dns-provider-* ]]; then
+      value="$(cut -d" " -f2- <<<"$line")"
+      global_values["$key"]="$value"
+      keyset["$key"]=1
+    fi
+  done < <(fn-plugin-property-get-all "letsencrypt" "--global")
+
+  if [[ "$APP" != "--global" ]]; then
+    while IFS= read -r line; do
+      [[ -n "$line" ]] || continue
+      key="$(cut -d" " -f1 <<<"$line")"
+      if [[ "$key" == dns-provider-* ]]; then
+        value="$(cut -d" " -f2- <<<"$line")"
+        app_values["$key"]="$value"
+        keyset["$key"]=1
+      fi
+    done < <(fn-plugin-property-get-all "letsencrypt" "$APP")
+  fi
+
+  [[ "${#keyset[@]}" -gt 0 ]] || return 0
+
+  local sorted_key app_value global_value computed_value
+  while IFS= read -r sorted_key; do
+    app_value="${app_values[$sorted_key]:-}"
+    global_value="${global_values[$sorted_key]:-}"
+    if [[ -n "$app_value" ]]; then
+      computed_value="$app_value"
+    else
+      computed_value="$global_value"
+    fi
+
+    if [[ "$sanitize" == "true" ]]; then
+      [[ -n "$app_value" ]] && app_value="****"
+      [[ -n "$global_value" ]] && global_value="****"
+      [[ -n "$computed_value" ]] && computed_value="****"
+    fi
+
+    if [[ -n "$computed_value" ]]; then
+      flag_map_ref+=("--letsencrypt-computed-${sorted_key}: ${computed_value}")
+    fi
+    if [[ -n "$global_value" ]]; then
+      flag_map_ref+=("--letsencrypt-global-${sorted_key}: ${global_value}")
+    fi
+    if [[ -n "$app_value" ]]; then
+      flag_map_ref+=("--letsencrypt-${sorted_key}: ${app_value}")
+    fi
+  done < <(printf '%s\n' "${!keyset[@]}" | sort)
+}

@@ -152,6 +152,10 @@ dokku letsencrypt:report myapp --letsencrypt-email
 
 Combining `--format json` with a single property flag is rejected.
 
+Any `dns-provider-*` properties set globally or for the app appear in the report alongside the fixed fields. For each set property, the report emits the scopes that actually have a value: a `--letsencrypt-dns-provider-<KEY>` row when set on the app, a `--letsencrypt-global-dns-provider-<KEY>` row when set globally, and a `--letsencrypt-computed-dns-provider-<KEY>` row that resolves to the app value (falling back to the global value). Querying an unset scope with the info-flag form is rejected as an invalid flag.
+
+The top-level `dokku report <app>` command aggregates output from every plugin and is commonly used in support and diagnostic contexts. When the letsencrypt section is rendered through that aggregate command, every `dns-provider-*` credential value is redacted to `****` to avoid leaking DNS provider API keys, tokens, or `_FILE` paths into shared output. The provider *name* (`dns-provider`, `global-dns-provider`, `computed-dns-provider`) and every other property (`email`, `server`, `graceperiod`, `lego-args`, `lego-docker-options`) remain unredacted. `dokku letsencrypt:report` is unaffected and continues to show raw values, so operators can verify what they have configured.
+
 ## Redirecting from HTTP to HTTPS
 
 Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.

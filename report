@@ -3,4 +3,4 @@ source "$PLUGIN_AVAILABLE_PATH/letsencrypt/command-functions"
 set -eo pipefail
 [[ $DOKKU_TRACE ]] && set -x
 
-cmd-letsencrypt-report-single "$@"
+LETSENCRYPT_REPORT_SANITIZE=true cmd-letsencrypt-report-single "$@"
