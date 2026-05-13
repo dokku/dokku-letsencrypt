@@ -34,3 +34,14 @@ teardown() {
   $SUDO test -f "$current/docker.env"
   $SUDO grep -q '^EXEC_PATH=/usr/local/bin/challtestsrv-dns.sh$' "$current/docker.env"
 }
+
+@test "dns-provider-* values containing spaces are not truncated in docker.env" {
+  dokku letsencrypt:set --global dns-provider-EXEC_PROPAGATION_TIMEOUT "30 seconds with spaces"
+  dokku letsencrypt:enable "$APP"
+
+  current="$(current_config_dir "$APP")"
+  $SUDO test -f "$current/docker.env"
+  $SUDO grep -qx 'EXEC_PROPAGATION_TIMEOUT=30 seconds with spaces' "$current/docker.env"
+
+  dokku letsencrypt:set --global dns-provider-EXEC_PROPAGATION_TIMEOUT ""
+}

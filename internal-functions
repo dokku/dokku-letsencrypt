@@ -501,7 +501,7 @@ fn-letsencrypt-configure-and-get-dir() {
       [[ -n "$line" ]] || continue
       key="$(cut -d" " -f1 <<<"$line")"
       if [[ "$key" == dns-provider-* ]]; then
-        value="$(cut -d" " -f2 <<<"$line")"
+        value="$(cut -d" " -f2- <<<"$line")"
         echo "${key#"dns-provider-"}=$value" >>"$config_dir/docker.env"
       fi
     done
@@ -509,7 +509,7 @@ fn-letsencrypt-configure-and-get-dir() {
       [[ -n "$line" ]] || continue
       key="$(cut -d" " -f1 <<<"$line")"
       if [[ "$key" == dns-provider-* ]]; then
-        value="$(cut -d" " -f2 <<<"$line")"
+        value="$(cut -d" " -f2- <<<"$line")"
         echo "${key#"dns-provider-"}=$value" >>"$config_dir/docker.env"
       fi
     done
