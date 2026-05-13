@@ -1,138 +1,330 @@
 # dokku-letsencrypt
 
-dokku-letsencrypt is the official plugin for [dokku][dokku] that gives the ability to automatically retrieve and install TLS certificates from [letsencrypt.org](https://letsencrypt.org). During ACME validation, your app will stay available at any time.
+Official dokku plugin that retrieves and installs free TLS certificates from [Let's Encrypt](https://letsencrypt.org). The app stays online throughout ACME validation, and certificates are renewed automatically once a cron job is enabled.
 
-> By running this plugin, you agree to the Let's Encrypt Subscriber Agreement automatically (because prompting you whether you agree might break running the plugin as part of a cronjob).
->
-> If you like Let's Encrypt, please consider [donating to Let's Encrypt](https://letsencrypt.org/donate).
+> Running this plugin counts as accepting the Let's Encrypt Subscriber Agreement on your behalf. The plugin passes `--accept-tos` to `lego` so that unattended cron-based renewal does not block on a prompt.
 
 ## Installation
 
 ```shell
 sudo dokku plugin:install https://github.com/dokku/dokku-letsencrypt.git
-sudo dokku letsencrypt:cron-job --add # <- To enable auto-renew
+sudo dokku letsencrypt:cron-job --add
 ```
 
-### Upgrading from previous versions
+The first command installs the plugin and pulls the `dokku/letsencrypt` Docker image used to run the [lego](https://github.com/go-acme/lego) ACME client. The second command schedules daily auto-renewals, so existing certificates renew themselves before they expire.
 
-```shell
-sudo dokku plugin:update letsencrypt
-```
+To upgrade later, run `sudo dokku plugin:update letsencrypt`. The update step also migrates legacy `DOKKU_LETSENCRYPT_*` environment variables (`_EMAIL`, `_GRACEPERIOD`, `_ARGS`, `_SERVER`) and the older `lego-docker-args` property to their current property names, so no manual reconfiguration is needed.
 
-## Commands
+You can influence what the install and update commands do via the following host-level environment variables:
 
-```
-$ dokku letsencrypt:help
-    letsencrypt:active <app>                Verify if letsencrypt is active for an app
-    letsencrypt:auto-renew                  Auto-renew all apps secured by letsencrypt if renewal is necessary
-    letsencrypt:auto-renew <app>            Auto-renew app if renewal is necessary
-    letsencrypt:cleanup <app>               Cleanup stale certificates and configurations
-    letsencrypt:cron-job [--add|--remove]   Add, remove, or display the status of the auto-renewal cronjob
-    letsencrypt:disable <app>               Disable letsencrypt for an app
-    letsencrypt:enable <app> [--force]      Enable or renew letsencrypt for an app (skipped when a valid certificate already exists unless --force is set)
-    letsencrypt:list                        List letsencrypt-secured apps with certificate expiry
-    letsencrypt:report [<app>|--global]     Display a letsencrypt report for one or more apps
-    letsencrypt:revoke <app>                Revoke letsencrypt certificate for app
-```
+| Variable | Default | Description |
+|---|---|---|
+| `LETSENCRYPT_IMAGE` | `dokku/letsencrypt` | Docker image used for the lego container. Override this if you maintain a fork or a mirror. |
+| `LETSENCRYPT_IMAGE_VERSION` | image tag from this repo's `Dockerfile` | Tag of the lego image to pull and run. |
+| `LETSENCRYPT_DISABLE_PULL` | (unset) | Set to `true` to skip `docker pull` during install and update. Useful on air-gapped hosts where the image is already loaded. |
 
 ## Usage
 
-> If using this plugin with Cloudflare:
->
-> - The domain dns should be setup in "Proxied" mode
-> - SSL/TLS mode must be in "Full" mode
->   - Using letsencrypt in "Flexible" mode will cause Cloudflare to detect your server as down
->   - Using "Full" mode will require disabling SSL/TLS in cloudflare in order to renew the certificate.
->
-> If using "Flexible" SSL/TLS mode, avoid using this plugin.
->
-> See these two links for more details:
->
->  - https://community.cloudflare.com/t/lets-encrypt-ssl-cannot-renew-with-cloudflare/257666
->  - https://support.cloudflare.com/hc/en-us/articles/214820528-Validating-a-Let-s-Encrypt-Certificate-on-a-Site-Already-Active-on-Cloudflare
+Help for any command can be displayed by running `dokku letsencrypt:help`. Plugin help output together with this README is used to generate the public documentation; the per-command subsections below cover each command in depth.
 
-The app which is obtaining a letsencrypt certificate must already be deployed and accessible over the internet (i.e. in the browser) in order to add letsencrypt to your app. This plugin will fail to apply for an app that has otherwise only been created.
-
-Obtain a Let's encrypt TLS certificate for app `myapp` (you can also run this command to renew the certificate):
+### Commands
 
 ```
-$ dokku letsencrypt:set myapp email your@email.tld
------> Setting email to your@email.tld
-$ dokku letsencrypt:enable myapp
-=====> Let's Encrypt myapp...
------> Updating letsencrypt docker image...
-latest: Pulling from dokku/letsencrypt
+letsencrypt:active <app>                                       Verify if letsencrypt is active for an app
+letsencrypt:auto-renew [<app>]                                 Auto-renew app if renewal is necessary
+letsencrypt:cleanup <app>                                      Remove stale certificate directories for app
+letsencrypt:cron-job [--add|--remove]                          Add, remove, or display the status of the auto-renewal cron job.
+letsencrypt:disable <app>                                      Disable letsencrypt for an app
+letsencrypt:enable <app> [--force]                             Enable or renew letsencrypt for an app (skipped when a valid certificate already exists unless --force is set)
+letsencrypt:help                                               Display letsencrypt help
+letsencrypt:list                                               List letsencrypt-secured apps with certificate expiry times
+letsencrypt:report [<app>|--global] [<flag>] [--format json]   Display a letsencrypt report for one or more apps
+letsencrypt:revoke <app>                                       Revoke letsencrypt certificate for app
+letsencrypt:set <app> <property> (<value>)                     Set or clear a letsencrypt property for an app
+```
 
-Digest: sha256:20f2a619795c1a3252db6508f77d6d3648ad5b336e67caaf801126367dbdfa22
-Status: Image is up to date for dokku/letsencrypt:latest
-       done
+### Basic usage
+
+The app needs to already be deployed and reachable on the public internet over HTTP before a certificate can be issued. Let's Encrypt fetches a challenge file from your app's domain to prove you control it, so an app that has only been created (no successful deploy yet) cannot be enabled.
+
+Set an email address, then enable the plugin for the app:
+
+```shell
+dokku letsencrypt:set myapp email your@email.tld
+dokku letsencrypt:enable myapp
+```
+
+A successful run looks like this:
+
+```
+=====> Let's Encrypt myapp...
 -----> Enabling letsencrypt proxy for myapp...
------> Getting letsencrypt certificate for myapp...
+-----> Getting letsencrypt certificate for myapp via HTTP-01
         - Domain 'myapp.mydomain.com'
 
 [ removed various log messages for brevity ]
 
 -----> Certificate retrieved successfully.
------> Symlinking let's encrypt certificates
+-----> Installing let's encrypt certificates
 -----> Configuring SSL for myapp.mydomain.com...(using /var/lib/dokku/plugins/available/nginx-vhosts/templates/nginx.ssl.conf.template)
------> Creating https nginx.conf
------> Running nginx-pre-reload
-       Reloading nginx
 -----> Disabling letsencrypt proxy for myapp...
-       done
+       Done
 ```
 
-Once the certificate is installed, you can use the `certs:*` built-in commands to edit and query your certificate.
-
-You could also use the following command to set an email address for global. So you don't need to type the email address for different application.
+Once the certificate is installed, the regular `dokku certs:*` commands can read, replace, or remove it. Setting an email once at the `--global` scope spares you from repeating it for every app:
 
 ```shell
 dokku letsencrypt:set --global email your@email.tld
 ```
 
-## Automatic certificate renewal
+When you add or change an app's domains afterwards, the plugin logs a warning reminding you to run `letsencrypt:enable` again so the certificate covers the new SAN list.
 
-To enable the automatic renewal of certificates, a cronjob needs to be defined for
-the `dokku` user which will run daily and renew any certificates that are due to
-be renewed.
+### Verify if letsencrypt is active for an app
 
-This can be done using the following command:
+```shell
+# usage
+dokku letsencrypt:active <app>
+```
+
+Prints `true` if the certificate currently installed on the app was issued by this plugin, `false` otherwise. Useful in scripts that need to decide whether to call `letsencrypt:enable`.
+
+```shell
+dokku letsencrypt:active myapp
+```
+
+### Enable letsencrypt for an app
+
+```shell
+# usage
+dokku letsencrypt:enable <app> [--force]
+dokku letsencrypt:enable --all [--force]
+```
+
+flags:
+
+- `--force` / `-f`: request a new certificate even if the existing one is still valid. See [Idempotent enable](#idempotent-enable) for what triggers a real ACME call by default.
+- `--all`: run the enable flow against every app on the host. Useful after a bulk configuration change such as updating the global `email` or `server`.
+
+Issues a certificate via the configured challenge type (HTTP-01 by default, DNS-01 when `dns-provider` is set), installs it on the app, and reloads nginx. The command is safe to call on every deploy; it only contacts the ACME server when something has actually changed.
+
+Enable a single app:
+
+```shell
+dokku letsencrypt:enable myapp
+```
+
+Force a fresh certificate request for a single app:
+
+```shell
+dokku letsencrypt:enable myapp --force
+```
+
+Enable every app on the host:
+
+```shell
+dokku letsencrypt:enable --all
+```
+
+### Auto-renew certificates if necessary
+
+```shell
+# usage
+dokku letsencrypt:auto-renew [<app>]
+```
+
+Renews any certificate whose remaining lifetime has dropped below the configured `graceperiod`. With no app argument the plugin scans every app on the host, sorted by ascending time-to-renewal so the most urgent renewals run first (this matters when an ACME rate limit is in play). With an app argument it only renews that one app.
+
+The auto-renewal cron job invokes this command, but you can also run it manually:
+
+```shell
+dokku letsencrypt:auto-renew
+dokku letsencrypt:auto-renew myapp
+```
+
+### Manage the auto-renewal cron job
+
+```shell
+# usage
+dokku letsencrypt:cron-job [--add|--remove]
+```
+
+flags:
+
+- `--add`: install the auto-renew cron entry.
+- `--remove`: remove the auto-renew cron entry.
+- no flag: print whether the cron job is currently installed.
+
+Renewal can only happen if something runs `letsencrypt:auto-renew` on a schedule. This command writes (or removes) that cron entry on your behalf. When the dokku `cron` plugin is installed, the entry is `24 6 * * *` (daily at 06:24) and its output is appended to `/var/log/dokku/letsencrypt.log`. Otherwise the plugin falls back to writing `@daily` directly to the dokku user's crontab.
+
+```shell
+dokku letsencrypt:cron-job --add
+dokku letsencrypt:cron-job
+dokku letsencrypt:cron-job --remove
+```
+
+### Disable letsencrypt for an app
+
+```shell
+# usage
+dokku letsencrypt:disable <app>
+```
+
+Removes the certificate and the plugin's per-app state from `$DOKKU_ROOT/<app>/letsencrypt` and `$DOKKU_ROOT/<app>/tls`, then triggers nginx to drop the HTTPS configuration. The app stays running on plain HTTP. Run this when you want to take an app off Let's Encrypt without revoking the certificate at the ACME server.
+
+```shell
+dokku letsencrypt:disable myapp
+```
+
+### Remove stale certificate directories
+
+```shell
+# usage
+dokku letsencrypt:cleanup <app>
+```
+
+Every certificate request lands in a hash-keyed directory under `$DOKKU_ROOT/<app>/letsencrypt/certs/`, and `current` symlinks to the active one. Old hash directories accumulate when the lego config changes (new domain, different `lego-args`, etc.). `letsencrypt:cleanup` removes everything except the currently-active hash directory.
+
+```shell
+dokku letsencrypt:cleanup myapp
+```
+
+### List letsencrypt-secured apps
+
+```shell
+# usage
+dokku letsencrypt:list
+```
+
+Prints a table of every app with a Let's Encrypt certificate installed: expiry timestamp, time remaining on the certificate, and time remaining before auto-renewal kicks in. The list is sorted by expiry date so the most urgent entries appear first.
+
+```shell
+dokku letsencrypt:list
+```
+
+### Display a letsencrypt report
+
+```shell
+# usage
+dokku letsencrypt:report [<app>|--global] [<flag>] [--format json]
+```
+
+flags:
+
+- `--global`: report only global properties.
+- `--format json`: emit a JSON object instead of the default stdout layout. Cannot be combined with an info flag.
+- `--letsencrypt-<property>` (such as `--letsencrypt-email` or `--letsencrypt-computed-server`): print the value for that single property.
+
+Exposes the plugin's configuration and state for tooling and diagnostics. With no arguments it prints a report for every app; with an app name it scopes to that one app; with `--global` it shows only the global values. See [Reports](#reports) for the redaction behavior in the top-level `dokku report` command.
+
+```shell
+dokku letsencrypt:report
+dokku letsencrypt:report myapp
+dokku letsencrypt:report --global
+dokku letsencrypt:report myapp --format json
+dokku letsencrypt:report myapp --letsencrypt-email
+```
+
+### Revoke letsencrypt certificate for app
+
+```shell
+# usage
+dokku letsencrypt:revoke <app>
+```
+
+Tells the ACME server to revoke the certificate currently installed on the app. The local files remain in place so the next `letsencrypt:enable` can reuse them or replace them. Use this when a private key has leaked or you no longer want the certificate to be considered valid by browsers.
+
+```shell
+dokku letsencrypt:revoke myapp
+```
+
+### Set or clear a letsencrypt property
+
+```shell
+# usage
+dokku letsencrypt:set <app>|--global <property> [<value>]
+```
+
+Sets the property to the given value, or clears it when no value is provided. The first argument can be an app name (sets the property for that app) or `--global` (sets the default for every app). When the plugin needs a property's value it first checks the app, then falls back to the global setting.
+
+Valid properties are `dns-provider`, `email`, `graceperiod`, `server`, `lego-args`, `lego-docker-options`, and any `dns-provider-*` key (used for DNS-01 credentials, see [DNS-01 challenge](#dns-01-challenge)).
+
+Set a per-app value:
+
+```shell
+dokku letsencrypt:set myapp email myapp-admin@example.com
+```
+
+Set a global default:
+
+```shell
+dokku letsencrypt:set --global email admin@example.com
+```
+
+Clear an app-level value (falls back to the global value, if any):
+
+```shell
+dokku letsencrypt:set myapp email
+```
+
+## Configuration
+
+All non-secret configuration is stored via `letsencrypt:set`. App-level values take precedence over global values, so it is common to set safe defaults at `--global` and only override per app when needed.
+
+| Property | Default | Description |
+|---|---|---|
+| `dns-provider` | (none) | Name of a [valid lego DNS provider](https://go-acme.github.io/lego/dns/). Setting this switches the app from HTTP-01 to DNS-01, which is what enables wildcard certificates. |
+| `email` | (none) | **Required.** Address used to register the ACME account. Let's Encrypt sends expiry reminders here. |
+| `graceperiod` | `2592000` (30 days) | Seconds remaining on a certificate before auto-renew tries to replace it. The Let's Encrypt certificate lifetime is 90 days, so 30 days of grace is the common default. |
+| `lego-args` | (none) | Extra arguments appended to the `lego` CLI invocation. See the [lego CLI docs](https://go-acme.github.io/lego/usage/cli/). |
+| `lego-docker-options` | (none) | Extra flags appended to `docker run` when starting the lego container. Use this for volume mounts, env files, or custom networks. This is distinct from `lego-args`, which goes to the `lego` binary itself. |
+| `server` | `default` | ACME directory URL. `default` resolves to `https://acme-v02.api.letsencrypt.org/directory`. `staging` resolves to `https://acme-staging-v02.api.letsencrypt.org/directory`. Any other value is used as a literal URL. |
+
+Set a single property:
+
+```shell
+dokku letsencrypt:set myapp email myapp-admin@example.com
+dokku letsencrypt:set --global graceperiod 1209600
+```
+
+`dns-provider-*` properties (DNS-01 credentials) live in the same property store and follow the same precedence rule. They are covered in [DNS-01 challenge](#dns-01-challenge).
+
+## Automatic renewal
+
+Let's Encrypt certificates expire after 90 days, so any production app needs unattended renewal. The plugin's renewal mechanism is a cron job that runs `letsencrypt:auto-renew`, which iterates over every Let's Encrypt-secured app and re-issues certificates whose remaining lifetime has dropped below `graceperiod` (default: 30 days).
+
+Install the cron job once during initial setup:
 
 ```shell
 dokku letsencrypt:cron-job --add
 ```
 
-Running `dokku letsencrypt:cron-job` without a flag reports whether the auto-renewal cron job is currently enabled.
+When the dokku `cron` plugin is installed, the entry is `24 6 * * *` (daily at 06:24) and its output is appended to `/var/log/dokku/letsencrypt.log`. Otherwise the plugin falls back to writing `@daily` to the dokku user's crontab. Running `letsencrypt:cron-job` without a flag reports whether the entry is installed.
 
-## Configuration
+## Idempotent enable
 
-`dokku-letsencrypt` uses the [Dokku environment variable manager](https://dokku.com/docs/configuration/environment-variables/) for all configuration. The important environment variables are:
+`letsencrypt:enable <app>` is safe to call on every deploy. It only contacts the ACME server when one of the following is true:
 
-Variable             | Default           | Description
----------------------|-------------------|-------------------------------------------------------------------------
-`dns-provider`       | (none)            | The name of a [valid lego dns-provider](https://go-acme.github.io/lego/dns/)
-`email`              | (none)            | **REQUIRED:** E-mail address to use for registering with Let's Encrypt.
-`graceperiod`        | 2592000 (30 days) | Time in seconds left on a certificate before it should get renewed
-`lego-args`          | (none)            | Extra arguments to pass to the `lego` CLI. See the [lego CLI documentation](https://go-acme.github.io/lego/usage/cli/) for available options. Previously named `lego-docker-args`; existing values are migrated automatically on plugin update.
-`lego-docker-options`| (none)            | Extra arguments to pass to `docker run` when starting the `lego` container (for volume mounts, extra env files, custom networks, etc.). Distinct from `lego-args`, which targets the `lego` CLI itself.
-`server`             | default           | Which ACME server to use. Can be 'default', 'staging' or a URL
+- the app does not currently have a Let's Encrypt certificate installed,
+- the app's domains, email, server, `lego-args`, `lego-docker-options`, or `dns-provider` have changed since the certificate was issued,
+- the certificate is within its renewal grace period (see `graceperiod`).
 
-You can set a setting using `dokku letsencrypt:set $APP $SETTING_NAME $SETTING_VALUE`. When looking for a setting, the plugin will first look if it was defined for the current app and fall back to settings defined by `--global`.
+In every other case the command exits successfully without touching nginx, the lego container, or the ACME server. This is what makes the command safe to wire into CI-driven review-app deploys without burning through Let's Encrypt's rate limits.
 
-> Note: See "DNS-01 Challenge" for more information on configuration a dns-provider for DNS-01 based challenges and wildcard support.
+To force a new certificate request even when the existing certificate is still valid, pass `--force`:
+
+```shell
+dokku letsencrypt:enable myapp --force
+```
+
+This is useful when copying certificates between servers (the new host has no ACME-account record of the existing cert) or when manually rotating a certificate.
 
 ## Reports
 
-The `letsencrypt:report` command exposes app-level and global plugin properties for consumption by external tooling. Without arguments, it prints a human-readable report for every app:
+`letsencrypt:report` exposes per-app and global plugin properties for tooling and diagnostics. Without arguments it prints a human-readable report for every app, with an app name it reports on that app, and with `--global` it limits output to global properties.
 
 ```shell
 dokku letsencrypt:report
 dokku letsencrypt:report myapp
-```
-
-Pass `--global` to limit output to the global properties only:
-
-```shell
 dokku letsencrypt:report --global
 ```
 
@@ -141,53 +333,97 @@ Pass `--format json` to emit a JSON object instead of the default stdout layout.
 ```shell
 dokku letsencrypt:report myapp --format json
 dokku letsencrypt:report --global --format json
-dokku letsencrypt:report --format json
 ```
 
-Specifying a single property flag (such as `--letsencrypt-email`) still prints just that value:
+Specifying a single property flag (such as `--letsencrypt-email`) prints just that value. Combining `--format json` with a single property flag is rejected.
 
 ```shell
 dokku letsencrypt:report myapp --letsencrypt-email
 ```
 
-Combining `--format json` with a single property flag is rejected.
+Any `dns-provider-*` properties set globally or for the app appear in the report alongside the fixed fields. For each set property, the report emits the scopes that actually have a value: a `--letsencrypt-dns-provider-<KEY>` row when set on the app, a `--letsencrypt-global-dns-provider-<KEY>` row when set globally, and a `--letsencrypt-computed-dns-provider-<KEY>` row that resolves to the app value (falling back to the global value).
 
-Any `dns-provider-*` properties set globally or for the app appear in the report alongside the fixed fields. For each set property, the report emits the scopes that actually have a value: a `--letsencrypt-dns-provider-<KEY>` row when set on the app, a `--letsencrypt-global-dns-provider-<KEY>` row when set globally, and a `--letsencrypt-computed-dns-provider-<KEY>` row that resolves to the app value (falling back to the global value). Querying an unset scope with the info-flag form is rejected as an invalid flag.
+The top-level `dokku report <app>` command aggregates output from every plugin and is commonly used in support contexts. When the letsencrypt section is rendered through that aggregate command, every `dns-provider-*` credential value is redacted to `****` to avoid leaking API keys or token paths into shared output. The provider name and every other property remain unredacted. `dokku letsencrypt:report` is unaffected and continues to show raw values, so operators can verify what they have configured.
 
-The top-level `dokku report <app>` command aggregates output from every plugin and is commonly used in support and diagnostic contexts. When the letsencrypt section is rendered through that aggregate command, every `dns-provider-*` credential value is redacted to `****` to avoid leaking DNS provider API keys, tokens, or `_FILE` paths into shared output. The provider *name* (`dns-provider`, `global-dns-provider`, `computed-dns-provider`) and every other property (`email`, `server`, `graceperiod`, `lego-args`, `lego-docker-options`) remain unredacted. `dokku letsencrypt:report` is unaffected and continues to show raw values, so operators can verify what they have configured.
+## Challenge types
 
-## Redirecting from HTTP to HTTPS
+ACME (the Let's Encrypt protocol) supports two challenge types, and this plugin can use either of them:
 
-Dokku's default nginx template will automatically redirect HTTP requests to HTTPS when a certificate is present.
+- **HTTP-01** is the default. Let's Encrypt fetches `http://<your-domain>/.well-known/acme-challenge/<token>` and expects to see a specific response. This requires your app to be reachable on port 80 from the public internet, but needs no special DNS access.
+- **DNS-01** proves control of a domain by writing a TXT record at `_acme-challenge.<your-domain>`. The plugin invokes a [lego DNS provider](https://go-acme.github.io/lego/dns/) (Cloudflare, Route53, Namecheap, etc.) to create and remove that record. DNS-01 is the only way to obtain wildcard certificates (`*.example.com`) and is useful when port 80 is firewalled.
 
-You can [customize the nginx template](https://dokku.com/docs/networking/proxies/nginx/) if you want different behaviour.
+Pick HTTP-01 unless you need wildcard certificates or your app cannot accept inbound connections on port 80. To use DNS-01, see [DNS-01 challenge](#dns-01-challenge).
 
-## Design
+## DNS-01 challenge
 
-`dokku-letsencrypt` gets around having to disable your web server using the following workflow:
+> DNS-01 support is sponsored by [Orca Scan Ltd](https://orcascan.com/).
 
-  1. Temporarily add a reverse proxy for the `/.well-known/` path of your app to `https://127.0.0.1:$ACMEPORT`
-  2. Run [the acme/lego Let's Encrypt client](https://github.com/go-acme/lego) in a [Docker container](https://hub.docker.com/r/goacme/lego/) binding to `$ACMEPORT` to complete the ACME challenge and retrieve the TLS certificates
-  3. Install the TLS certificates
-  4. Remove the reverse proxy and reload nginx
+To enable DNS-01, set `dns-provider` to a supported lego provider, then set the per-provider environment variables that lego reads. Provider-specific env vars are stored as letsencrypt properties prefixed with `dns-provider-`, scoped either globally or per app. Before you run `letsencrypt:enable`, make sure every domain you plan to cover (including any wildcard records) actually resolves to your server.
 
-For a more in-depth explanation, see [this blog post](https://blog.semicolonsoftware.de/securing-dokku-with-lets-encrypt-tls-certificates/)
+```shell
+dokku letsencrypt:set --global dns-provider namecheap
+dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_USER user
+dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_KEY key
+```
 
-## Dockerfile and Image-based Deploys
+If a DNS provider supports `_FILE`-suffixed environment variables for reading secrets from files, mount the secret file into the lego container with `lego-docker-options` and set the corresponding `dns-provider-*_FILE` property to the in-container path:
 
-When securing Dockerfile and Image-based deploys with dokku-letsencrypt, be aware of the [proxy mechanism for dokku 0.6+](https://dokku.com/docs/networking/port-management/#dockerfile).
+```shell
+dokku letsencrypt:set --global lego-docker-options "-v /etc/dokku-letsencrypt/cloudflare-token:/secrets/cf-token:ro"
+dokku letsencrypt:set --global dns-provider-CLOUDFLARE_DNS_API_TOKEN_FILE /secrets/cf-token
+```
 
-For Dockerfile deploys - as well as those via `git:from-image` - Dokku will determine which ports a container exposes (using `EXPOSE`) and will proxy them on the same port numbers on the host. If the Dockerfile exposes another port than 443, then HTTPS port 443 **needs to be manually configured** using the `dokku ports:*` commands in order for certificate validation and browsing to the app via HTTPS to work.
+### Using the exec DNS provider
 
-The HTTP-01 challenge used by Let's Encrypt also needs the app to be reachable on port 80. When `letsencrypt:enable` runs and the app's proxy port-map has no `http:80:*` entry, the plugin will inject one automatically using the container port from the first existing `http:*:*` (or `https:*:*`) mapping, so the ACME challenge can be served from nginx. The new mapping is persisted so subsequent renewals do not need to re-add it. If no `http` or `https` mapping exists at all, `letsencrypt:enable` exits with an error pointing to `dokku ports:add` instead of issuing a request that would fail at the ACME server. DNS-01 deployments skip this check because they do not depend on a port 80 listener.
+The lego [`exec` DNS provider](https://go-acme.github.io/lego/dns/exec/) shells out to a user-supplied script for creating and removing TXT records. The script must be reachable from inside the lego container at the path stored in `EXEC_PATH`. Use `lego-docker-options` to mount it from the host:
 
-A full workflow for creating a new Dockerfile/Image-based deployment (assuming the app is listening/exposed on port 5555) with `dokku-letsencrypt` would be:
+```shell
+sudo install -m 0755 /path/on/host/dns.sh /var/lib/dokku/data/letsencrypt/exec-dns.sh
 
-1. Create a new app `myapp` in dokku and push to the `dokku@myhost.com` remote.
-2. On the dokku host, use `dokku letsencrypt:enable myapp` to retrieve HTTPS certificates.
-3. On the dokku host, use `dokku ports:add myapp https:443:5555` to proxy HTTPS port 443 to port 5555 on the Docker image
+dokku letsencrypt:set --global dns-provider exec
+dokku letsencrypt:set --global lego-docker-options "-v /var/lib/dokku/data/letsencrypt/exec-dns.sh:/scripts/dns.sh:ro"
+dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
+```
 
-After these steps, the output of `dokku ports:report myapp` should look like this:
+Consult the lego documentation for your specific DNS provider for the full set of credentials it needs.
+
+### Disabling DNS-01 for a single app
+
+When a global `dns-provider` is set but a particular app's domain is not managed by that provider, set the app's `dns-provider` to `none` to force HTTP-01 for that app only:
+
+```shell
+dokku letsencrypt:set myapp dns-provider none
+```
+
+Setting the property to an empty string (`dokku letsencrypt:set myapp dns-provider ""`) deletes the app-level value and falls back to the global setting; `none` is the explicit opt-out. The `none` sentinel is also accepted at `--global` scope, where it behaves identically to leaving the property unset.
+
+## Generating a cert for multiple domains
+
+Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is also served at the root domain. If your app `00-default` runs at `00-default.mydomain.com`, it is reachable at `mydomain.com` too. Once you enable letsencrypt for the app, the bare-root URL stops working unless that domain is on the certificate. Add it to the app's domains first:
+
+```shell
+dokku domains:add 00-default mydomain.com
+dokku letsencrypt:enable 00-default
+```
+
+The same pattern applies whenever you add or change domains on a Let's Encrypt-secured app: domain changes invalidate the certificate's SAN list, so re-run `letsencrypt:enable`. The plugin emits a warning prompting you to do this whenever `dokku domains:add` or `dokku domains:set` touches the app.
+
+## Default-vhost (`_`) domain
+
+Dokku 0.30.4 added support for the literal `_` domain as an nginx default catch-all vhost. Let's Encrypt rejects `_` as an invalid identifier, so the plugin silently drops it from the certificate's SAN list and requests a certificate for the remaining domains. An app whose only domain is `_` cannot be enabled and falls into the existing "no domains detected" error path.
+
+## Dockerfile and image-based deploys
+
+When securing Dockerfile or image-based deploys, the plugin needs port 80 reachable for the HTTP-01 challenge and port 443 mapped to your app's container port for HTTPS traffic. For Dockerfile deploys, dokku proxies whichever ports the image declares with `EXPOSE` on the same port numbers on the host. Dokku also adds a matching `https:443:<container-port>` mapping for every `http:80:<container-port>` whenever a certificate is installed, so the standard case requires no manual `dokku ports:*` calls.
+
+To keep the HTTP-01 challenge working, `letsencrypt:enable` looks for an `http:80:*` entry in the app's proxy port map. If none exists, the plugin injects one using the container port from the first existing `http:*:*` (or `https:*:*`) mapping, including detected mappings from `EXPOSE`. The new mapping is persisted so subsequent renewals do not need to re-add it. Once the certificate is installed, dokku's `post-certs-update` trigger fills in the matching `https:443` mapping, completing the proxy setup. If the app has no `http` or `https` mapping at all, `letsencrypt:enable` exits with an error pointing at `dokku ports:add` rather than issuing a request that the ACME server would reject. DNS-01 deployments skip the port-80 check entirely because they do not use port 80 for validation.
+
+A full workflow for a Dockerfile or image-based app listening on port 5555:
+
+1. Create the app and push it to dokku.
+2. On the dokku host, run `dokku letsencrypt:enable myapp` to retrieve and install the certificate.
+
+After this, `dokku ports:report myapp` should show:
 
 ```
 =====> myapp ports information
@@ -195,113 +431,64 @@ After these steps, the output of `dokku ports:report myapp` should look like thi
        Ports map detected:            https:5555:5555
 ```
 
-Replace the container port (`5555` in the above example) with the port your app is listening on.
+Replace `5555` with whatever container port your app actually listens on.
 
-## Dealing with rate limit
+## HTTP to HTTPS redirect
 
-Be aware that Let's Encrypt is subject to [rate limiting](https://letsencrypt.org/docs/rate-limits/). The limit about the number of certificates you can add on a domain per week is a concern for dokku because of the default domain added to your new applications, named like `<app>.<dokku-domain>`: using `dokku-letsencrypt` on all your applications would create a certificate for each application subdomain on `<dokku-domain>`.
+Dokku's default nginx template automatically redirects HTTP requests to HTTPS once a certificate is installed. To change this behavior, [customize the nginx template](https://dokku.com/docs/networking/proxies/nginx/).
 
-As a workaround, if you want to encrypt many applications, make sure to add a proper domain for each one and remove their default domain before running `dokku-letsencrypt`. For example, if your dokku domain is `dokku.example.com` and you want to encrypt your `foo` app:
+## Rate limits
 
-```sh
+Let's Encrypt enforces [public rate limits](https://letsencrypt.org/docs/rate-limits/). The most relevant one for dokku is the per-week cap on certificates per registered domain: because dokku gives every new app a default subdomain like `<app>.<dokku-domain>`, running this plugin on many apps that all share `<dokku-domain>` will hit that cap quickly.
+
+The workaround is to set a real domain per app and remove the default subdomain before enabling. For example, if your dokku domain is `dokku.example.com` and you want to secure your `foo` app at `foo.com`:
+
+```shell
 dokku domains:add foo foo.com
 dokku domains:remove foo foo.dokku.example.com
 dokku letsencrypt:enable foo
 ```
 
-While playing around with this plugin, you might want to switch to the let's encrypt staging server by running `dokku letsencrypt:set myapp server  staging` to enjoy much higher rate limits and switching back to the real server by running `dokku letsencrypt:set myapp server` once you are ready.
+While iterating on configuration, point the plugin at Let's Encrypt's staging environment, which has much higher rate limits and issues untrusted certificates:
 
-When the ACME server returns a rate-limit response, `letsencrypt:enable` exits non-zero and prints a dedicated warning that points at the [Let's Encrypt rate-limits documentation](https://letsencrypt.org/docs/rate-limits/) and suggests switching to the staging server while iterating. The full lego output is still printed above the warning, so the specific limit that was hit (for example "too many certificates already issued" or "too many failed authorizations") remains visible.
+```shell
+dokku letsencrypt:set myapp server staging
+dokku letsencrypt:enable myapp
+```
 
-### Shared ACME account
+Once you are ready for a production certificate, clear the override and re-enable:
 
-To stay clear of the [new accounts per IP](https://letsencrypt.org/docs/rate-limits/) limit (10 per 3 hours), the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/accounts` and mounts it into every `lego` invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
+```shell
+dokku letsencrypt:set myapp server
+dokku letsencrypt:enable myapp --force
+```
+
+When the ACME server returns a rate-limit response, `letsencrypt:enable` exits non-zero and prints a dedicated warning pointing at the Let's Encrypt rate-limits documentation and suggesting the staging server. The full lego output is still printed above the warning, so the specific limit that was hit ("too many certificates already issued", "too many failed authorizations", etc.) remains visible.
+
+## Shared ACME account
+
+Let's Encrypt also limits new accounts per IP to 10 per 3 hours, which would be easy to trip on a busy dokku host. To stay clear of this, the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/accounts` and mounts it into every lego invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
 
 When upgrading from a previous version of this plugin, the first `letsencrypt:enable` after the upgrade registers exactly one new account in the shared directory. Existing per-app account material under `$DOKKU_ROOT/<app>/letsencrypt/certs/<hash>/accounts/` is left in place so that `letsencrypt:revoke` for certificates issued before the upgrade can still find the original account.
 
-## Generating a Cert for multiple domains
+## App cloning and renaming
 
-Your [default dokku app](https://dokku.com/docs/networking/proxies/nginx/?h=default+site#default-site) is accessible under the root domain too. So if you have an application `00-default` that is running under `00-default.mydomain.com` it is accessible under `mydomain.com` too. Now if you enable letsencrypt for your `00-default` application, it is not accessible anymore on `mydomain.com`. You can add the root domain to your dokku domains by typing:
-
-```shell
-dokku domains:add 00-default mydomain.com
-dokku letsencrypt:enable 00-default
-```
-
-## Default-vhost (`_`) domain
-
-Dokku 0.30.4 added support for the literal `_` domain as an Nginx default catch-all vhost. Let's Encrypt rejects `_` as an invalid identifier, so this plugin silently drops it from the certificate's SAN list and requests a certificate for the remaining domains. An app whose only domain is `_` cannot be enabled and falls into the existing "no domains detected" error path.
-
-## DNS-01 Challenge
-
-> Functionality sponsored by [Orca Scan Ltd](https://orcascan.com/).
-
-In order to provide a Letsencrypt certificate for a wildcard domain, a DNS-01 challenge must be used. To configure, the `dns-provider` property must be set to a [supported Lego provider](https://go-acme.github.io/lego/dns/). Additionally, the environment variables used by the DNS provider must be set as letsencrypt properties with the prefix `dns-provider-`. Both global and app-specific properties are supported.
-
-> Warning: Before using a DNS-based challenge, ensure all DNS records - including wildcard records - are pointing at your server.
+The plugin clears the destination app's `letsencrypt` directory whenever an app is cloned or renamed. Certificates are bound to specific domains and specific config hashes, so reusing the source app's directory would leave the new app pointing at the wrong cert. After cloning or renaming, run `letsencrypt:enable` on the new app to issue a fresh certificate.
 
 ```shell
-# set the provider to namecheap
-dokku letsencrypt:set --global dns-provider namecheap
-
-# set the properties necessary for namecheap usage
-dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_USER user
-dokku letsencrypt:set --global dns-provider-NAMECHEAP_API_KEY key
+dokku apps:clone myapp myapp-staging
+dokku letsencrypt:enable myapp-staging
 ```
 
-If a DNS provider documents `_FILE`-suffixed environment variables for reading secrets from files, mount the secret file into the `lego` container with `lego-docker-options` and set the corresponding `dns-provider-*_FILE` property to the in-container path. For example:
+## Cloudflare
 
-```shell
-dokku letsencrypt:set --global lego-docker-options "-v /etc/dokku-letsencrypt/cloudflare-token:/secrets/cf-token:ro"
-dokku letsencrypt:set --global dns-provider-CLOUDFLARE_DNS_API_TOKEN_FILE /secrets/cf-token
-```
+If your domain is proxied through Cloudflare, set Cloudflare's DNS records to "Proxied" mode and configure SSL/TLS to "Full" mode before enabling this plugin. Cloudflare's "Flexible" mode terminates HTTPS at Cloudflare's edge and connects to your origin over plain HTTP, which means Let's Encrypt's renewal request is served back as HTTP rather than reaching your origin's HTTPS listener. Symptoms range from validation failures to Cloudflare reporting the origin as down.
 
-### Using the `exec` DNS provider
+If you are committed to "Flexible" SSL/TLS mode, do not use this plugin. For background, see:
 
-The `lego` [`exec` DNS provider](https://go-acme.github.io/lego/dns/exec/) shells out to a user-supplied script for creating and removing TXT records. The script must be reachable from inside the `lego` container at the path stored in the `EXEC_PATH` environment variable. Use `lego-docker-options` to mount it from the host:
-
-```shell
-# write the script on the dokku host, make it executable
-sudo install -m 0755 /path/on/host/dns.sh /var/lib/dokku/data/letsencrypt/exec-dns.sh
-
-# mount it into the lego container and point exec at it
-dokku letsencrypt:set --global dns-provider exec
-dokku letsencrypt:set --global lego-docker-options "-v /var/lib/dokku/data/letsencrypt/exec-dns.sh:/scripts/dns.sh:ro"
-dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
-```
-
-Please see the Lego documentation for your DNS provider for more information on what configuration is necessary to utilize DNS-01 challenges.
-
-### Disabling DNS-01 for a single app
-
-When a global `dns-provider` is set but a particular app's domain is not managed by that provider, set the app's `dns-provider` to `none` to force HTTP-01 for that app only:
-
-```shell
-dokku letsencrypt:set <app> dns-provider none
-```
-
-Setting the property to an empty string (`dokku letsencrypt:set <app> dns-provider ""`) deletes the app-level value and falls back to the global setting; `none` is the explicit opt-out. The `none` sentinel is also accepted at `--global` scope, where it behaves identically to leaving the property unset.
-
-## Idempotent enable
-
-`dokku letsencrypt:enable <app>` is safe to call on every deploy. It only contacts the ACME server when one of the following is true:
-
-- the app does not currently have a Let's Encrypt certificate installed
-- the app's domains, email, server, `lego-args`, `lego-docker-options`, or `dns-provider` have changed since the certificate was issued
-- the certificate is within its renewal grace period (see the `graceperiod` configuration variable)
-
-In every other case the command exits successfully without touching nginx, the lego container, or the ACME server. This avoids running into Let's Encrypt rate limits when the same app is redeployed many times in a short window (for example, CI-driven review apps).
-
-To force a new certificate request even when the existing certificate is still valid, pass `--force`:
-
-```shell
-dokku letsencrypt:enable <app> --force
-```
-
-This is useful when copying certificates between servers (the host did not issue the cert, so the ACME account on the new host has no record of it) or when manually rotating an existing certificate.
+- <https://developers.cloudflare.com/ssl/origin-configuration/ssl-modes/>
+- <https://community.cloudflare.com/t/lets-encrypt-ssl-cannot-renew-with-cloudflare/257666>
 
 ## License
 
-This plugin is released under the MIT license. See the file [LICENSE](LICENSE).
-
-[dokku]: https://github.com/dokku/dokku
+[MIT](LICENSE)
