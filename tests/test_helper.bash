@@ -129,7 +129,7 @@ config_hash_dirs() {
 }
 
 shared_accounts_dir() {
-  echo "/var/lib/dokku/data/letsencrypt/accounts"
+  echo "/var/lib/dokku/data/letsencrypt/--global/accounts"
 }
 
 # lego stores accounts under <accounts>/<host>/<email>/, with ':' in the host

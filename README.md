@@ -378,10 +378,10 @@ dokku letsencrypt:set --global dns-provider-CLOUDFLARE_DNS_API_TOKEN_FILE /secre
 The lego [`exec` DNS provider](https://go-acme.github.io/lego/dns/exec/) shells out to a user-supplied script for creating and removing TXT records. The script must be reachable from inside the lego container at the path stored in `EXEC_PATH`. Use `lego-docker-options` to mount it from the host:
 
 ```shell
-sudo install -m 0755 /path/on/host/dns.sh /var/lib/dokku/data/letsencrypt/exec-dns.sh
+sudo install -m 0755 /path/on/host/dns.sh /var/lib/dokku/data/letsencrypt/--global/exec-dns.sh
 
 dokku letsencrypt:set --global dns-provider exec
-dokku letsencrypt:set --global lego-docker-options "-v /var/lib/dokku/data/letsencrypt/exec-dns.sh:/scripts/dns.sh:ro"
+dokku letsencrypt:set --global lego-docker-options "-v /var/lib/dokku/data/letsencrypt/--global/exec-dns.sh:/scripts/dns.sh:ro"
 dokku letsencrypt:set --global dns-provider-EXEC_PATH /scripts/dns.sh
 ```
 
@@ -467,7 +467,7 @@ When the ACME server returns a rate-limit response, `letsencrypt:enable` exits n
 
 ## Shared ACME account
 
-Let's Encrypt also limits new accounts per IP to 10 per 3 hours, which would be easy to trip on a busy dokku host. To stay clear of this, the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/accounts` and mounts it into every lego invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
+Let's Encrypt also limits new accounts per IP to 10 per 3 hours, which would be easy to trip on a busy dokku host. To stay clear of this, the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/--global/accounts` and mounts it into every lego invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
 
 When upgrading from a previous version of this plugin, the first `letsencrypt:enable` after the upgrade registers exactly one new account in the shared directory. Existing per-app account material under `$DOKKU_ROOT/<app>/letsencrypt/certs/<hash>/accounts/` is left in place so that `letsencrypt:revoke` for certificates issued before the upgrade can still find the original account.
 

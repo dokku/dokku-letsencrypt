@@ -17,7 +17,7 @@ load 'test_helper'
 
   [ "$($SUDO stat -c '%a' "$parent")" = "755" ]
   [ "$($SUDO stat -c '%a' "$webroot")" = "755" ]
-  [ "$($SUDO stat -c '%a' "${parent}/accounts")" = "700" ]
+  [ "$($SUDO stat -c '%a' "${parent}/--global/accounts")" = "700" ]
 
   $SUDO rm -rf "$webroot"
 }

@@ -2,7 +2,7 @@
 
 load 'test_helper'
 
-AUTORENEW_FLAG="/var/lib/dokku/data/letsencrypt/autorenew"
+AUTORENEW_FLAG="/var/lib/dokku/data/letsencrypt/--global/autorenew"
 
 teardown() {
   dokku letsencrypt:cron-job --remove >/dev/null 2>&1 || true
