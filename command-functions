@@ -284,6 +284,8 @@ cmd-letsencrypt-report-single() {
     "--letsencrypt-server: $(fn-letsencrypt-server "$APP")"
   )
 
+  fn-letsencrypt-report-add-dns-provider-keys flag_map "$APP"
+
   if [[ "$APP" == "--global" ]]; then
     fn-letsencrypt-report-filter-global flag_map
   fi
