@@ -289,6 +289,51 @@ fn-letsencrypt-acme-proxy-enable() {
   restart_nginx | sed "s/^/       /"
 }
 
+fn-letsencrypt-ensure-http-port() {
+  declare desc="ensure the app has an http:80 proxy mapping so nginx can serve the HTTP-01 challenge"
+  declare APP="$1"
+  local port_map line container_port
+
+  # HTTP-01 is the only challenge type that needs a listener on port 80; the
+  # DNS-01 flow never hits nginx.
+  if [[ -n "$(fn-letsencrypt-computed-dns-provider "$APP")" ]]; then
+    return 0
+  fi
+
+  port_map="$(plugn trigger ports-get "$APP" 2>/dev/null || true)"
+
+  while IFS= read -r line; do
+    [[ "$line" == http:80:* ]] && return 0
+  done <<<"$port_map"
+
+  container_port=""
+  while IFS= read -r line; do
+    if [[ "$line" == http:*:* ]]; then
+      container_port="${line##*:}"
+      break
+    fi
+  done <<<"$port_map"
+
+  if [[ -z "$container_port" ]]; then
+    while IFS= read -r line; do
+      if [[ "$line" == https:*:* ]]; then
+        container_port="${line##*:}"
+        break
+      fi
+    done <<<"$port_map"
+  fi
+
+  if [[ -z "$container_port" ]]; then
+    dokku_log_warn "Cannot enable letsencrypt for $APP: no http or https proxy port mapping was found."
+    dokku_log_warn "  letsencrypt needs an http listener on port 80 to serve the ACME HTTP-01 challenge."
+    dokku_log_warn "  Add one with: dokku ports:add $APP http:80:<container-port>"
+    return 1
+  fi
+
+  dokku_log_info1 "Adding http:80:${container_port} port mapping to ${APP} for ACME HTTP-01 challenge..."
+  dokku ports:add "$APP" "http:80:${container_port}" | sed "s/^/       /"
+}
+
 fn-letsencrypt-computed-dns-provider() {
   declare desc="get configured dns provider, with 'none' as an explicit opt-out sentinel"
   declare APP="$1"
@@ -612,6 +657,7 @@ fn-letsencrypt-enable() {
     return 0
   fi
 
+  fn-letsencrypt-ensure-http-port "$APP"
   fn-letsencrypt-acme-proxy-enable "$APP"
   fn-letsencrypt-acme-execute-challenge "$APP" || EXIT_CODE=$? # remove ACME proxy even if this fails
   fn-letsencrypt-acme-proxy-disable "$APP"
