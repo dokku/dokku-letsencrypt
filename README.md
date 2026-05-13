@@ -469,8 +469,6 @@ When the ACME server returns a rate-limit response, `letsencrypt:enable` exits n
 
 Let's Encrypt also limits new accounts per IP to 10 per 3 hours, which would be easy to trip on a busy dokku host. To stay clear of this, the plugin stores a single ACME account in `${DOKKU_LIB_ROOT}/data/letsencrypt/--global/accounts` and mounts it into every lego invocation. Apps sharing the same `email` and `server` reuse one account regardless of how many apps are enabled, matching Let's Encrypt's [recommendation](https://letsencrypt.org/docs/integration-guide/#one-account-or-many) for hosting providers. Apps configured with a distinct `email` or `server` get their own entry under the shared directory, keyed by `(server, email)`.
 
-Plugin-owned entries live under a `--global/` subdirectory rather than at the data-directory root, because per-app webroots are created as siblings of these entries and core dokku rejects any app name starting with `-`. The `install` and `update` hooks migrate the legacy `autorenew` cron marker into `--global/` on plugin upgrade.
-
 When upgrading from a previous version of this plugin, the first `letsencrypt:enable` after the upgrade registers exactly one new account in the shared directory. Existing per-app account material under `$DOKKU_ROOT/<app>/letsencrypt/certs/<hash>/accounts/` is left in place so that `letsencrypt:revoke` for certificates issued before the upgrade can still find the original account.
 
 ## App cloning and renaming
