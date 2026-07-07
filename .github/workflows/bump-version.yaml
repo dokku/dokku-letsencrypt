@@ -42,11 +42,16 @@ jobs:
           bump: ${{ github.event.inputs.bump_type }}
           input: ${{ steps.latest-tag.outputs.GIT_LATEST_TAG }}
 
-      - name: Create and Push Tag
+      - name: Bump plugin.toml and Push Release
         run: |
           git config --global user.name 'Dokku Bot'
           git config --global user.email no-reply@dokku.com
+          VERSION="${GIT_NEXT_TAG#v}"
+          sed -i "s/^version = .*/version = \"$VERSION\"/" plugin.toml
+          git add plugin.toml
+          git commit -m "Release $VERSION"
           git tag "$GIT_NEXT_TAG"
+          git push origin "HEAD:$GITHUB_REF_NAME"
           git push origin "$GIT_NEXT_TAG"
         env:
           GIT_NEXT_TAG: ${{ steps.next-tag.outputs.version }}
