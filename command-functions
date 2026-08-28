@@ -40,7 +40,7 @@ cmd-letsencrypt-auto-renew() {
     # if we should hit a rate limit along the way.
     # Store the list in a temporary file to avoid subshell issues with pipelines
     local temp_file=$(mktemp)
-    fn-letsencrypt-list-apps-with-expiry | sort -nk5 > "$temp_file"
+    fn-letsencrypt-list-apps-with-expiry --quiet | sort -nk5 > "$temp_file"
     
     while IFS=$'\t' read -r -a appExpiry; do
       if [[ ${appExpiry[4]} -lt 0 ]]; then

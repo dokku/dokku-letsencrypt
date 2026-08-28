@@ -833,6 +833,7 @@ fn-letsencrypt-is-active() {
 
 fn-letsencrypt-list-apps-with-expiry() {
   declare desc="list all letsencrypt-secured apps together with their expiry date"
+  declare QUIET="${1:-}"
 
   # prints a tab-separated list of
   #  * app name
@@ -841,7 +842,20 @@ fn-letsencrypt-list-apps-with-expiry() {
   #  * time left on certificate (in seconds)
   #  * time until renewal (in seconds)
 
-  for APP in $(dokku_apps); do
+  # `dokku_apps` warns on stderr when the host has no apps. That is worth
+  # surfacing interactively, but not from the daily auto-renew cron job, where
+  # an app-less host is an unremarkable state rather than something to report.
+  # It reports the empty host by calling `dokku_log_fail`, which exits rather
+  # than returns, so the `|| true` has to sit outside the command substitution
+  # to keep `set -e` from aborting here.
+  local INSTALLED_APPS=""
+  if [[ "$QUIET" == "--quiet" ]]; then
+    INSTALLED_APPS="$(dokku_apps 2>/dev/null)" || true
+  else
+    INSTALLED_APPS="$(dokku_apps)" || true
+  fi
+
+  for APP in $INSTALLED_APPS; do
     if [[ "$APP" == "=====>" ]] || [[ "$APP" == "My" ]] || [[ "$APP" == "Apps" ]]; then continue; fi
     if [[ "$(fn-letsencrypt-is-active "$APP")" == "true" ]]; then
       local expiry=$(fn-letsencrypt-expiration "$APP")

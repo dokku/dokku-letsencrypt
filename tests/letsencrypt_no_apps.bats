@@ -2,9 +2,9 @@
 
 load 'test_helper'
 
-# The global properties `letsencrypt:report` exposes are app-independent, so
-# reporting on them has to work on a host that has not deployed anything yet -
-# the state a provisioning tool sees right after `letsencrypt:set --global`.
+# A host that has not deployed anything yet is the state a provisioning tool
+# sees right after `letsencrypt:set --global`, and the state the auto-renew
+# cron job runs against every day. Neither should treat it as an error.
 
 setup() {
   destroy_all_apps
@@ -49,4 +49,17 @@ teardown() {
   run /bin/bash -c "dokku letsencrypt:report --format json 2>/dev/null"
   [ "$status" -eq 0 ]
   [ -z "$output" ]
+}
+
+@test "letsencrypt:auto-renew stays quiet about missing apps when the host has no apps" {
+  run dokku letsencrypt:auto-renew
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "Finished auto-renewal"
+  ! echo "$output" | grep -q "You haven't deployed any applications yet"
+}
+
+@test "letsencrypt:list still reports that the host has no apps" {
+  run dokku letsencrypt:list
+  [ "$status" -eq 0 ]
+  echo "$output" | grep -q "You haven't deployed any applications yet"
 }
