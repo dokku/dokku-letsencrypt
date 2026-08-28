@@ -27,6 +27,21 @@ cleanup_app() {
   fi
 }
 
+# `dokku apps:list` prints a `=====> My Apps` header before the app names and
+# warns on stderr when the host has no apps, so drop both.
+list_apps() {
+  dokku apps:list 2>/dev/null | grep -v '^=====>' || true
+}
+
+# Leaves the host with zero apps. Safe because bats runs the suite serially and
+# every other test file creates the app it needs in `setup`.
+destroy_all_apps() {
+  local app
+  for app in $(list_apps); do
+    cleanup_app "$app"
+  done
+}
+
 set_domain() {
   local app="$1" domain="$2"
   dokku domains:set "$app" "$domain"
