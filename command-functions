@@ -225,8 +225,6 @@ cmd-letsencrypt-report() {
   set -- "${REPORT_ARGS[@]}"
 
   declare APP="${1:-}" INFO_FLAG="${2:-}"
-  local INSTALLED_APPS
-  INSTALLED_APPS=$(dokku_apps)
 
   if [[ -n "$APP" ]] && [[ "$APP" == --* ]]; then
     INFO_FLAG="$APP"
@@ -244,7 +242,7 @@ cmd-letsencrypt-report() {
   if [[ "$APP" == "--global" ]]; then
     cmd-letsencrypt-report-single "$APP" "$INFO_FLAG" "$REPORT_FORMAT"
   elif [[ -z "$APP" ]]; then
-    for app in $INSTALLED_APPS; do
+    for app in $(dokku_apps); do
       cmd-letsencrypt-report-single "$app" "$INFO_FLAG" "$REPORT_FORMAT" | tee || true
     done
   else

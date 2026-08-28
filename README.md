@@ -320,7 +320,7 @@ This is useful when copying certificates between servers (the new host has no AC
 
 ## Reports
 
-`letsencrypt:report` exposes per-app and global plugin properties for tooling and diagnostics. Without arguments it prints a human-readable report for every app, with an app name it reports on that app, and with `--global` it limits output to global properties.
+`letsencrypt:report` exposes per-app and global plugin properties for tooling and diagnostics. Without arguments it prints a human-readable report for every app, with an app name it reports on that app, and with `--global` it limits output to global properties. Because global properties are app-independent, `--global` works on a host that has no apps deployed yet, and an argument-less invocation on such a host warns instead of failing.
 
 ```shell
 dokku letsencrypt:report
